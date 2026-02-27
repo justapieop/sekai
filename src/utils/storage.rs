@@ -9,6 +9,7 @@ impl StorageUtils {
         Self {
             s3_client: Client::builder(endpoint)
                 .expect("S3_ENDPOINT must be a valid S3 instance")
+                .region("auto")
                 .auth(s3::Auth::Static(
                     Credentials::new(access_key_id, secret_access_key)
                         .expect("S3_ACCESS_KEY_ID AND S3_SECRET_ACCESS_KEY must be valid"),
