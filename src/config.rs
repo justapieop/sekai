@@ -5,6 +5,7 @@ pub struct Config {
     pub machine_id: u32,
     pub jwks_iss: String,
     pub jwks_url: String,
+    pub database_url: String,
 }
 
 const DEFAULT_HOST: &str = "127.0.0.1:3000";
@@ -19,6 +20,7 @@ impl Config {
                 .expect("MACHINE_ID must be a 32 bit unsigned integer"),
             jwks_iss: env::var("JWKS_ISS").expect("JWKS_ISS must be set"),
             jwks_url: env::var("JWKS_URL").expect("JWKS_URL must be set"),
+            database_url: env::var("DATABASE_URL").expect("DATABASE_URL must be set"),
         }
     }
 }
