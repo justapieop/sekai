@@ -32,7 +32,9 @@ sqlx = { version = "0.8", features = [
     "chrono",
     "postgres",
     "uuid",
+    "bigdecimal",
 ] }
 uuid = { version = "1.21.0", features = ["serde"] }
 moka = { version = "0.12.13", features = ["future"] }
 dotenvy = "0.15.7"
+bigdecimal = { version = "0.4", features = ["serde-json"] }
