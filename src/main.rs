@@ -1,5 +1,6 @@
 mod config;
 mod middleware;
+mod repo;
 mod routes;
 mod state;
 mod utils;
@@ -17,6 +18,7 @@ use tracing::info;
 
 use crate::{
     config::Config,
+    repo::user::UserRepo,
     state::AppState,
     utils::{jwt_utils::JwtUtils, snowflake::SnowflakeGenerator},
 };
@@ -44,8 +46,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .await
         .expect("DATABASE_URL must be connected");
 
+    let user_repo: Arc<UserRepo> = Arc::new(UserRepo::new());
+
     info!("Creating state");
-    let state: Arc<AppState> = Arc::new(AppState::new(snowflake, jwt_utils, pool));
+    let state: Arc<AppState> = Arc::new(AppState::new(snowflake, jwt_utils, pool, user_repo));
 
     info!("Initializing axum");
     let router: Router<()> = Router::new()
