@@ -20,7 +20,7 @@ use crate::{
     config::Config,
     repo::user::UserRepo,
     state::AppState,
-    utils::{jwt_utils::JwtUtils, snowflake::SnowflakeGenerator},
+    utils::{jwt_utils::JwtUtils, snowflake::SnowflakeGenerator, storage::StorageUtils},
 };
 
 #[tokio::main(flavor = "multi_thread")]
@@ -39,6 +39,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let jwt_utils: Arc<JwtUtils> =
         Arc::new(JwtUtils::new(&config.jwks_iss, &config.jwks_url).await);
 
+    info!("Connecting to S3");
+    let storage_utils: Arc<StorageUtils> = Arc::new(StorageUtils::new(
+        &config.s3_endpoint,
+        &config.s3_access_key_id,
+        &config.s3_secret_access_key,
+    ));
+
     info!("Connecting to database");
     let pool: PgPool = PgPoolOptions::new()
         .max_connections(5)
@@ -49,7 +56,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let user_repo: Arc<UserRepo> = Arc::new(UserRepo::new());
 
     info!("Creating state");
-    let state: Arc<AppState> = Arc::new(AppState::new(snowflake, jwt_utils, pool, user_repo));
+    let state: Arc<AppState> = Arc::new(AppState::new(
+        snowflake,
+        jwt_utils,
+        pool,
+        storage_utils,
+        user_repo,
+    ));
 
     info!("Initializing axum");
     let router: Router<()> = Router::new()

@@ -5,7 +5,7 @@ use tokio::sync::Mutex;
 
 use crate::{
     repo::user::UserRepo,
-    utils::{jwt_utils::JwtUtils, snowflake::SnowflakeGenerator},
+    utils::{jwt_utils::JwtUtils, snowflake::SnowflakeGenerator, storage::StorageUtils},
 };
 
 #[derive(Clone)]
@@ -14,6 +14,7 @@ pub struct AppState {
     pub jwt_utils: Arc<JwtUtils>,
     pub pool: PgPool,
     pub user_repo: Arc<UserRepo>,
+    pub storage_utils: Arc<StorageUtils>,
 }
 
 impl AppState {
@@ -21,6 +22,7 @@ impl AppState {
         snowflake: Arc<Mutex<SnowflakeGenerator>>,
         jwt_utils: Arc<JwtUtils>,
         pool: PgPool,
+        storage_utils: Arc<StorageUtils>,
         user_repo: Arc<UserRepo>,
     ) -> Self {
         Self {
@@ -28,6 +30,7 @@ impl AppState {
             jwt_utils,
             pool,
             user_repo,
+            storage_utils,
         }
     }
 }

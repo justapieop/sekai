@@ -6,6 +6,9 @@ pub struct Config {
     pub jwks_iss: String,
     pub jwks_url: String,
     pub database_url: String,
+    pub s3_endpoint: String,
+    pub s3_access_key_id: String,
+    pub s3_secret_access_key: String,
 }
 
 const DEFAULT_HOST: &str = "127.0.0.1:3000";
@@ -21,6 +24,10 @@ impl Config {
             jwks_iss: env::var("JWKS_ISS").expect("JWKS_ISS must be set"),
             jwks_url: env::var("JWKS_URL").expect("JWKS_URL must be set"),
             database_url: env::var("DATABASE_URL").expect("DATABASE_URL must be set"),
+            s3_endpoint: env::var("S3_ENDPOINT").expect("S3_ENDPOINT must be set"),
+            s3_access_key_id: env::var("S3_ACCESS_KEY_ID").expect("S3_ACCESS_KEY_ID must be set"),
+            s3_secret_access_key: env::var("S3_SECRET_ACCESS_KEY")
+                .expect("S3_SECRET_ACCESS_KEY must be set"),
         }
     }
 }
