@@ -34,4 +34,5 @@ sqlx = { version = "0.8", features = [
     "uuid",
 ] }
 uuid = { version = "1.21.0", features = ["serde"] }
-moka = "0.12.13"
+moka = { version = "0.12.13", features = ["future"] }
+dotenvy = "0.15.7"
