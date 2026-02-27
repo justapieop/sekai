@@ -1,11 +1,13 @@
 mod config;
-mod jwt_utils;
-mod snowflake;
+mod middleware;
+mod routes;
 mod state;
+mod utils;
 
 use std::{error::Error, sync::Arc};
 
 use axum::Router;
+use sqlx::{PgPool, postgres::PgPoolOptions};
 use tokio::{net::TcpListener, sync::Mutex};
 use tower::ServiceBuilder;
 use tower_http::{
@@ -13,7 +15,11 @@ use tower_http::{
 };
 use tracing::info;
 
-use crate::{config::Config, jwt_utils::JwtUtils, snowflake::SnowflakeGenerator, state::AppState};
+use crate::{
+    config::Config,
+    state::AppState,
+    utils::{jwt_utils::JwtUtils, snowflake::SnowflakeGenerator},
+};
 
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -31,11 +37,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let jwt_utils: Arc<JwtUtils> =
         Arc::new(JwtUtils::new(&config.jwks_iss, &config.jwks_url).await);
 
+    info!("Connecting to database");
+    let pool: PgPool = PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&config.database_url)
+        .await
+        .expect("DATABASE_URL must be connected");
+
     info!("Creating state");
-    let state: Arc<AppState> = Arc::new(AppState::new(snowflake, jwt_utils));
+    let state: Arc<AppState> = Arc::new(AppState::new(snowflake, jwt_utils, pool));
 
     info!("Initializing axum");
     let router: Router<()> = Router::new()
+        .without_v07_checks()
+        .merge(routes::routes(state.clone()))
         .layer(
             ServiceBuilder::new()
                 .layer(TraceLayer::new_for_http())
