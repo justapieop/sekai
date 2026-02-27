@@ -16,3 +16,5 @@ tower-http = { version = "0.6.8", features = [
     "normalize-path",
 ] }
 tower = "0.5.3"
+serde = { version = "1.0.228", features = ["derive"] }
+futures-util = "0.3.31"
