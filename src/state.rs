@@ -4,6 +4,7 @@ use tokio::sync::Mutex;
 
 use crate::{jwt_utils::JwtUtils, snowflake::SnowflakeGenerator};
 
+#[derive(Clone)]
 pub struct AppState {
     pub snowflake: Arc<Mutex<SnowflakeGenerator>>,
     pub jwt_utils: Arc<JwtUtils>,
