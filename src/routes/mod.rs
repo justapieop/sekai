@@ -1,8 +1,9 @@
-pub mod admin;
-pub mod pin;
-pub mod pin_type;
-pub mod post;
-pub mod user;
+mod admin;
+mod challenge;
+mod pin;
+mod pin_type;
+mod post;
+mod user;
 
 use std::sync::Arc;
 
