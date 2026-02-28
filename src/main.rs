@@ -12,13 +12,16 @@ use sqlx::{PgPool, postgres::PgPoolOptions};
 use tokio::{net::TcpListener, sync::Mutex};
 use tower::ServiceBuilder;
 use tower_http::{
-    compression::CompressionLayer, normalize_path::NormalizePathLayer, trace::TraceLayer,
+    compression::CompressionLayer,
+    cors::{Any, CorsLayer},
+    normalize_path::NormalizePathLayer,
+    trace::TraceLayer,
 };
 use tracing::info;
 
 use crate::{
     config::Config,
-    repo::{file::FileRepo, pin::PinRepo, post::PostRepo, user::UserRepo},
+    repo::{file::FileRepo, pin::PinRepo, pin_types::PinTypeRepo, post::PostRepo, user::UserRepo},
     state::AppState,
     utils::{jwt_utils::JwtUtils, snowflake::SnowflakeGenerator, storage::StorageUtils},
 };
@@ -57,6 +60,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let post_repo: Arc<PostRepo> = Arc::new(PostRepo::new());
     let file_repo: Arc<Mutex<FileRepo>> = Arc::new(Mutex::new(FileRepo::new()));
     let pin_repo: Arc<PinRepo> = Arc::new(PinRepo::new());
+    let pin_type_repo: Arc<PinTypeRepo> = Arc::new(PinTypeRepo::new());
 
     info!("Creating state");
     let state: Arc<AppState> = Arc::new(AppState::new(
@@ -68,6 +72,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         post_repo,
         file_repo,
         pin_repo,
+        pin_type_repo,
     ));
 
     info!("Initializing axum");
@@ -78,7 +83,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
             ServiceBuilder::new()
                 .layer(TraceLayer::new_for_http())
                 .layer(CompressionLayer::new())
-                .layer(NormalizePathLayer::append_trailing_slash()),
+                .layer(NormalizePathLayer::trim_trailing_slash())
+                .layer(
+                    CorsLayer::new()
+                        .allow_origin(Any)
+                        .allow_methods(Any)
+                        .allow_headers(Any),
+                ),
         )
         .with_state(state.clone());
 
