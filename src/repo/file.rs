@@ -1,7 +1,6 @@
 use std::{error::Error, time::Duration};
 
 use bigdecimal::{BigDecimal, FromPrimitive};
-use chrono::{DateTime, Utc};
 use moka::future::Cache;
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, prelude::FromRow};

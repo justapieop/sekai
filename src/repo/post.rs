@@ -1,17 +1,11 @@
-use std::{error::Error, sync::Arc, time::Duration};
+use std::{error::Error, time::Duration};
 
-use axum_typed_multipart::FieldData;
 use bigdecimal::{BigDecimal, FromPrimitive};
-use bytes::Bytes;
 use chrono::{DateTime, Utc};
-use file_type::FileType;
 use moka::future::Cache;
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, prelude::FromRow};
-use tracing::info;
-use uuid::{Timestamp, Uuid};
-
-use crate::utils::storage::StorageUtils;
+use uuid::Uuid;
 
 const CACHE_KEY: &str = "POST_CACHE";
 
@@ -77,7 +71,7 @@ impl PostRepo {
 
         let post_list: Vec<DBPost> = match self.list_all_posts(pool).await {
             Ok(s) => s,
-            Err(e) => {
+            Err(_) => {
                 return None;
             }
         };
