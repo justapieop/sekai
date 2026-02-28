@@ -7,7 +7,7 @@ edition = "2024"
 tokio = { version = "1.49.0", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-axum = "0.8.7"
+axum = { version = "0.8.7", features = ["macros"] }
 tower-http = { version = "0.6.8", features = [
     "cors",
     "compression-gzip",
@@ -34,9 +34,11 @@ sqlx = { version = "0.8", features = [
     "uuid",
     "bigdecimal",
 ] }
-uuid = { version = "1.21.0", features = ["serde"] }
+uuid = { version = "1.21.0", features = ["serde", "v7"] }
 moka = { version = "0.12.13", features = ["future"] }
 dotenvy = "0.15.7"
 bigdecimal = { version = "0.4", features = ["serde-json"] }
 s3 = { version = "0.1.17", features = ["async", "rustls"] }
 bytes = { version = "1.11.1", features = ["serde"] }
+axum_typed_multipart = "0.16.5"
+file_type = { version = "0.8.11", features = ["iana"] }
