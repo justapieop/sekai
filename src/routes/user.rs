@@ -68,19 +68,26 @@ async fn get_user_by_id(
     }
 }
 
-async fn get_me(Extension(ext): Extension<Arc<DBUser>>) -> impl IntoResponse {
-    (StatusCode::OK, Json(ext)).into_response()
+async fn get_user_challenge(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<Uuid>,
+) -> impl IntoResponse {
+    match state
+        .challenge_repo
+        .get_user_challenge(&state.pool, id)
+        .await
+    {
+        Ok(s) => (StatusCode::OK, Json(s)).into_response(),
+        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR).into_response(),
+    }
 }
 
-pub fn routes(state: Arc<AppState>) -> Router<Arc<AppState>> {
+pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
         .without_v07_checks()
         .route("/", get(get_all_user))
         .route("/{id}", get(get_user_by_id))
-        .route(
-            "/me",
-            get(get_me).layer(from_fn_with_state(state, middleware::verify_access_token)),
-        )
+        .route("/{id}/challenge", get(get_user_challenge))
 }
 
 #[derive(Debug, Serialize)]

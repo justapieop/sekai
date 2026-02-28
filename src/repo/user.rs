@@ -95,6 +95,9 @@ impl UserRepo {
 
         if let Some(mut cached_user_list) = self.cache.get(CACHE_KEY).await {
             cached_user_list.push(user.clone());
+            self.cache
+                .insert(String::from(CACHE_KEY), cached_user_list)
+                .await;
         }
 
         Ok(user.clone())

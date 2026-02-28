@@ -1,3 +1,4 @@
+mod challenge;
 mod pin;
 mod pin_type;
 
@@ -11,4 +12,5 @@ pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
         .without_v07_checks()
         .nest("/pin", pin::routes())
+        .nest("/challenge", challenge::routes())
 }

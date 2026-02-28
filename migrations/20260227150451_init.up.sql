@@ -67,8 +67,10 @@ CREATE TABLE IF NOT EXISTS challenges (
     instruction TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    ends_at TIMESTAMPTZ,
-    points INT NOT NULL CHECK(points > 0)
+    starts_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ends_at TIMESTAMPTZ NOT NULL,
+    points INT NOT NULL CHECK(points > 0),
+    duration INT NOT NULL
 );
 
 CREATE UNIQUE INDEX challenge_idx ON challenges (id);
@@ -76,7 +78,18 @@ CREATE UNIQUE INDEX challenge_idx ON challenges (id);
 CREATE TABLE IF NOT EXISTS user_challenges (
     user_id UUID REFERENCES users(id) ON UPDATE CASCADE ON DELETE CASCADE,
     challenge_id NUMERIC(39, 0) REFERENCES challenges(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY(user_id, challenge_id)
 );
 
 CREATE UNIQUE INDEX user_challenge_idx ON user_challenges(user_id, challenge_id);
+
+CREATE TABLE IF NOT EXISTS user_challenges_uploads (
+    user_id UUID REFERENCES users(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    challenge_id NUMERIC(39, 0) REFERENCES challenges(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    attachment_id NUMERIC(39, 0) REFERENCES file_metadata(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    PRIMARY KEY(user_id, challenge_id, attachment_id)
+);
+
+CREATE UNIQUE INDEX user_challenges_upload_idx ON user_challenges_uploads(user_id, challenge_id, attachment_id);

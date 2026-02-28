@@ -110,6 +110,9 @@ impl PostRepo {
 
         if let Some(mut cached_post_list) = self.cache.get(CACHE_KEY).await {
             cached_post_list.push(post.clone());
+            self.cache
+                .insert(String::from(CACHE_KEY), cached_post_list)
+                .await;
         }
 
         Ok(post.clone())

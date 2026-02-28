@@ -35,7 +35,10 @@ impl StorageUtils {
     ) -> Result<PutObjectOutput, Error> {
         self.s3_client
             .objects()
-            .put(user_id.to_string(), file_name)
+            .put(
+                BUCKET_NAME,
+                format!("{}/{}", user_id.to_string(), file_name),
+            )
             .content_type(content_type)
             .body_bytes(data)
             .send()
@@ -66,9 +69,5 @@ impl StorageUtils {
             )
             .send()
             .await
-    }
-
-    pub async fn create_bucket(&self, id: Uuid) -> Result<CreateBucketOutput, Error> {
-        self.s3_client.buckets().create(id.to_string()).send().await
     }
 }

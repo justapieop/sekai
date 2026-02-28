@@ -51,6 +51,10 @@ impl PinRepo {
             Err(e) => return Err(e.into()),
         });
 
+        self.cache
+            .insert(String::from(CACHE_KEY), pins.clone())
+            .await;
+
         Ok(pins.clone())
     }
 
@@ -87,6 +91,9 @@ impl PinRepo {
         });
         if let Some(mut cached_pin_list) = self.cache.get(CACHE_KEY).await {
             cached_pin_list.push(pin.clone());
+            self.cache
+                .insert(String::from(CACHE_KEY), cached_pin_list)
+                .await;
         }
         Ok(pin.clone())
     }

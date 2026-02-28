@@ -18,7 +18,13 @@ use crate::{middleware, state::AppState};
 pub fn routes(state: Arc<AppState>) -> Router<Arc<AppState>> {
     Router::new()
         .without_v07_checks()
-        .nest("/user", user::routes(state.clone()))
+        .nest(
+            "/user",
+            user::routes().layer(from_fn_with_state(
+                state.clone(),
+                middleware::verify_access_token,
+            )),
+        )
         .nest(
             "/post",
             post::routes().layer(from_fn_with_state(
@@ -38,5 +44,11 @@ pub fn routes(state: Arc<AppState>) -> Router<Arc<AppState>> {
                     .layer(from_fn(middleware::restrict_admin)),
             ),
         )
-        .nest("/challenge", challenge::routes())
+        .nest(
+            "/challenge",
+            challenge::routes().layer(from_fn_with_state(
+                state.clone(),
+                middleware::verify_access_token,
+            )),
+        )
 }
