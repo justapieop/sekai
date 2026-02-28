@@ -34,3 +34,28 @@ CREATE TABLE post_attachments (
 );
 
 CREATE UNIQUE INDEX post_attachment_idx ON post_attachments(post_id, attachment_id);
+
+CREATE TABLE IF NOT EXISTS pin_types (
+    id NUMERIC(39, 0) PRIMARY KEY,
+    name VARCHAR(256) NOT NULL,
+    icon BYTEA NOT NULL
+);
+
+CREATE UNIQUE INDEX pin_type_idx ON pin_types(id);
+
+CREATE TABLE IF NOT EXISTS pins (
+    id NUMERIC(39, 0) PRIMARY KEY,
+    name VARCHAR(256) NOT NULL, 
+    type_id NUMERIC(39, 0) NOT NULL REFERENCES pin_types(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    lat real NOT NULL,
+    long real NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    address TEXT NOT NULL,
+    is_sponsored BOOLEAN NOT NULL DEFAULT false,
+    terms TEXT NOT NULL DEFAULT '',
+    opening INT[] NOT NULL DEFAULT ARRAY[0, 0],
+    closing INT[] NOT NULL DEFAULT ARRAY[0, 0]
+);
+
+CREATE UNIQUE INDEX pin_idx ON pins(id);
