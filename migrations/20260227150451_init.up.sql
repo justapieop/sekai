@@ -59,3 +59,24 @@ CREATE TABLE IF NOT EXISTS pins (
 );
 
 CREATE UNIQUE INDEX pin_idx ON pins(id);
+
+CREATE TABLE IF NOT EXISTS challenges (
+    id NUMERIC(39, 0) PRIMARY KEY,
+    title VARCHAR(256) NOT NULL,
+    description TEXT NOT NULL,
+    instruction TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ends_at TIMESTAMPTZ,
+    points INT NOT NULL CHECK(points > 0)
+);
+
+CREATE UNIQUE INDEX challenge_idx ON challenges (id);
+
+CREATE TABLE IF NOT EXISTS user_challenges (
+    user_id UUID REFERENCES users(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    challenge_id NUMERIC(39, 0) REFERENCES challenges(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    PRIMARY KEY(user_id, challenge_id)
+);
+
+CREATE UNIQUE INDEX user_challenge_idx ON user_challenges(user_id, challenge_id);

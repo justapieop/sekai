@@ -1,6 +1,8 @@
 DROP TABLE IF EXISTS post_attachments;
 DROP TABLE IF EXISTS posts;
-DROP TABLE IF EXISTS users;
 DROP TABLE IF EXISTS file_metadata;
 DROP TABLE IF EXISTS pins;
 DROP TABLE IF EXISTS pin_types;
+DROP TABLE IF EXISTS user_challenges;
+DROP TABLE IF EXISTS challenges;
+DROP TABLE IF EXISTS users;

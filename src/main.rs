@@ -21,7 +21,10 @@ use tracing::info;
 
 use crate::{
     config::Config,
-    repo::{file::FileRepo, pin::PinRepo, pin_types::PinTypeRepo, post::PostRepo, user::UserRepo},
+    repo::{
+        challenge::ChallengeRepo, file::FileRepo, pin::PinRepo, pin_types::PinTypeRepo,
+        post::PostRepo, user::UserRepo,
+    },
     state::AppState,
     utils::{jwt_utils::JwtUtils, snowflake::SnowflakeGenerator, storage::StorageUtils},
 };
@@ -61,6 +64,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let file_repo: Arc<Mutex<FileRepo>> = Arc::new(Mutex::new(FileRepo::new()));
     let pin_repo: Arc<PinRepo> = Arc::new(PinRepo::new());
     let pin_type_repo: Arc<PinTypeRepo> = Arc::new(PinTypeRepo::new());
+    let challenge_repo: Arc<ChallengeRepo> = Arc::new(ChallengeRepo::new());
 
     info!("Creating state");
     let state: Arc<AppState> = Arc::new(AppState::new(
@@ -73,6 +77,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         file_repo,
         pin_repo,
         pin_type_repo,
+        challenge_repo,
     ));
 
     info!("Initializing axum");

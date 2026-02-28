@@ -4,7 +4,10 @@ use sqlx::PgPool;
 use tokio::sync::Mutex;
 
 use crate::{
-    repo::{file::FileRepo, pin::PinRepo, pin_types::PinTypeRepo, post::PostRepo, user::UserRepo},
+    repo::{
+        challenge::ChallengeRepo, file::FileRepo, pin::PinRepo, pin_types::PinTypeRepo,
+        post::PostRepo, user::UserRepo,
+    },
     utils::{jwt_utils::JwtUtils, snowflake::SnowflakeGenerator, storage::StorageUtils},
 };
 
@@ -19,6 +22,7 @@ pub struct AppState {
     pub file_repo: Arc<Mutex<FileRepo>>,
     pub pin_repo: Arc<PinRepo>,
     pub pin_type_repo: Arc<PinTypeRepo>,
+    pub challenge_repo: Arc<ChallengeRepo>,
 }
 
 impl AppState {
@@ -32,6 +36,7 @@ impl AppState {
         file_repo: Arc<Mutex<FileRepo>>,
         pin_repo: Arc<PinRepo>,
         pin_type_repo: Arc<PinTypeRepo>,
+        challenge_repo: Arc<ChallengeRepo>,
     ) -> Self {
         Self {
             snowflake,
@@ -43,6 +48,7 @@ impl AppState {
             file_repo,
             pin_repo,
             pin_type_repo,
+            challenge_repo,
         }
     }
 }
