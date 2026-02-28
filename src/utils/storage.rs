@@ -1,4 +1,10 @@
-use s3::{Client, Credentials};
+use bytes::Bytes;
+use s3::{
+    Client, Credentials, Error,
+    types::{CreateBucketOutput, GetObjectOutput, PutObjectOutput},
+};
+use tracing::error;
+use uuid::Uuid;
 
 pub struct StorageUtils {
     s3_client: Client,
@@ -17,5 +23,45 @@ impl StorageUtils {
                 .build()
                 .expect("S3_ENDPOINT must be a valid S3 instance"),
         }
+    }
+
+    pub async fn upload_file(
+        &self,
+        user_id: Uuid,
+        data: Bytes,
+        file_name: &str,
+        content_type: &str,
+    ) -> Result<PutObjectOutput, Error> {
+        self.s3_client
+            .objects()
+            .put(user_id.to_string(), file_name)
+            .content_type(content_type)
+            .body_bytes(data)
+            .send()
+            .await
+    }
+
+    pub async fn fetch_file(
+        &self,
+        user_id: Uuid,
+        file_name: &str,
+    ) -> Result<GetObjectOutput, Error> {
+        self.s3_client
+            .objects()
+            .get(user_id.to_string(), file_name)
+            .send()
+            .await
+    }
+
+    pub async fn delete_file(&self, user_id: Uuid, file_name: &str) -> Result<(), Error> {
+        self.s3_client
+            .objects()
+            .delete(user_id.to_string(), file_name)
+            .send()
+            .await
+    }
+
+    pub async fn create_bucket(&self, id: Uuid) -> Result<CreateBucketOutput, Error> {
+        self.s3_client.buckets().create(id.to_string()).send().await
     }
 }
