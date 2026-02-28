@@ -38,4 +38,5 @@ pub fn routes(state: Arc<AppState>) -> Router<Arc<AppState>> {
                     .layer(from_fn(middleware::restrict_admin)),
             ),
         )
+        .nest("/challenge", challenge::routes())
 }
