@@ -2401,6 +2401,7 @@ dependencies = [
  "reqwest",
  "s3",
  "serde",
+ "serde_json",
  "sqlx",
  "tokio",
  "tower",

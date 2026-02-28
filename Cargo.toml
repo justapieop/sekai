@@ -33,6 +33,7 @@ sqlx = { version = "0.8", features = [
     "postgres",
     "uuid",
     "bigdecimal",
+    "json",
 ] }
 uuid = { version = "1.21.0", features = ["serde", "v7"] }
 moka = { version = "0.12.13", features = ["future"] }
@@ -42,3 +43,4 @@ s3 = { version = "0.1.17", features = ["async", "rustls"] }
 bytes = { version = "1.11.1", features = ["serde"] }
 axum_typed_multipart = "0.16.5"
 file_type = { version = "0.8.11", features = ["iana"] }
+serde_json = "1.0.149"
