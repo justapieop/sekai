@@ -3,8 +3,9 @@ use s3::{
     Client, Credentials, Error,
     types::{CreateBucketOutput, GetObjectOutput, PutObjectOutput},
 };
-use tracing::error;
 use uuid::Uuid;
+
+const BUCKET_NAME: &str = "assets";
 
 pub struct StorageUtils {
     s3_client: Client,
@@ -48,7 +49,10 @@ impl StorageUtils {
     ) -> Result<GetObjectOutput, Error> {
         self.s3_client
             .objects()
-            .get(user_id.to_string(), file_name)
+            .get(
+                BUCKET_NAME,
+                format!("{}/{}", user_id.to_string(), file_name),
+            )
             .send()
             .await
     }
@@ -56,7 +60,10 @@ impl StorageUtils {
     pub async fn delete_file(&self, user_id: Uuid, file_name: &str) -> Result<(), Error> {
         self.s3_client
             .objects()
-            .delete(user_id.to_string(), file_name)
+            .delete(
+                BUCKET_NAME,
+                format!("{}/{}", user_id.to_string(), file_name),
+            )
             .send()
             .await
     }

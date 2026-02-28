@@ -85,15 +85,6 @@ pub async fn verify_access_token(
         },
     );
 
-    match state.storage_utils.create_bucket(user.id).await {
-        Ok(_) => {}
-        Err(e) => {
-            if e.code().is_some() && e.code().unwrap().ne("BucketAlreadyOwnedByYou") {
-                return res;
-            }
-        }
-    };
-
     req.extensions_mut().insert(user);
 
     let response = next.run(req).await;
