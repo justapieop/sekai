@@ -126,11 +126,16 @@ async fn create_post(
     (StatusCode::OK, Json(post)).into_response()
 }
 
+async fn get_post_attachments(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    //state.jwt_utils
+}
+
 pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
         .without_v07_checks()
         .route("/", get(get_all_posts).post(create_post))
         .route("/{id}", get(get_post_by_id))
+        .route("/{id}/attachments", get(get_post_attachments))
 }
 
 #[derive(Debug, Serialize)]

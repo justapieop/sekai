@@ -87,19 +87,16 @@ pub async fn verify_access_token(
 
     req.extensions_mut().insert(user);
 
-    let response = next.run(req).await;
-
-    response
+    next.run(req).await
 }
 
 pub async fn restrict_admin(
-    State(_): State<Arc<AppState>>,
-    Extension(ext): Extension<DBUser>,
+    Extension(ext): Extension<Arc<DBUser>>,
     req: Request,
     next: Next,
 ) -> Response {
     if !ext.is_admin {
-        Response::builder()
+        return Response::builder()
             .status(StatusCode::UNAUTHORIZED)
             .body(Body::from("Unauthorized"))
             .unwrap_or_default();
