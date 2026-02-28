@@ -81,7 +81,7 @@ impl PinTypeRepo {
         .fetch_optional(pool)
         .await
         {
-            Ok(s) => {}
+            Ok(_) => {}
             Err(e) => return Err(e.into()),
         };
         Ok(())
