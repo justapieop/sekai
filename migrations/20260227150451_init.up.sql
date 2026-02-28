@@ -37,7 +37,7 @@ CREATE UNIQUE INDEX post_attachment_idx ON post_attachments(post_id, attachment_
 
 CREATE TABLE IF NOT EXISTS pin_types (
     id NUMERIC(39, 0) PRIMARY KEY,
-    name VARCHAR(256) NOT NULL,
+    name VARCHAR(256) UNIQUE NOT NULL,
     icon BYTEA NOT NULL
 );
 
