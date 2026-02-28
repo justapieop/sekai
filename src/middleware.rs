@@ -1,21 +1,18 @@
-use std::sync::Arc;
+use std::{str::FromStr, sync::Arc};
 
-use crate::AppState;
+use crate::{AppState, repo::user::DBUser};
 
-use tracing::error;
+use tracing::{debug, error};
 
 use axum::{
+    Extension,
     body::Body,
     extract::{Request, State},
     http::StatusCode,
     middleware::Next,
     response::Response,
 };
-
-#[derive(Clone)]
-pub struct UserData {
-    id: String,
-}
+use uuid::Uuid;
 
 pub async fn verify_access_token(
     State(state): State<Arc<AppState>>,
@@ -66,16 +63,55 @@ pub async fn verify_access_token(
         }
     };
 
-    req.extensions_mut().insert(UserData {
-        id: match uid.parse() {
+    let user: Arc<DBUser> = Arc::new(
+        match state
+            .user_repo
+            .create_profile(
+                &state.pool,
+                match Uuid::from_str(&uid) {
+                    Ok(s) => s,
+                    Err(_) => {
+                        return res;
+                    }
+                },
+            )
+            .await
+        {
             Ok(s) => s,
-            Err(_) => {
+            Err(e) => {
+                debug!("{}", e);
                 return res;
             }
         },
-    });
+    );
+
+    match state.storage_utils.create_bucket(user.id).await {
+        Ok(_) => {}
+        Err(e) => {
+            if e.code().is_some() && e.code().unwrap().ne("BucketAlreadyOwnedByYou") {
+                return res;
+            }
+        }
+    };
+
+    req.extensions_mut().insert(user);
 
     let response = next.run(req).await;
 
     response
+}
+
+pub async fn restrict_admin(
+    State(_): State<Arc<AppState>>,
+    Extension(ext): Extension<DBUser>,
+    req: Request,
+    next: Next,
+) -> Response {
+    if !ext.is_admin {
+        Response::builder()
+            .status(StatusCode::UNAUTHORIZED)
+            .body(Body::from("Unauthorized"))
+            .unwrap_or_default();
+    }
+    next.run(req).await
 }

@@ -18,7 +18,7 @@ use tracing::info;
 
 use crate::{
     config::Config,
-    repo::user::UserRepo,
+    repo::{file::FileRepo, post::PostRepo, user::UserRepo},
     state::AppState,
     utils::{jwt_utils::JwtUtils, snowflake::SnowflakeGenerator, storage::StorageUtils},
 };
@@ -54,6 +54,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .expect("DATABASE_URL must be connected");
 
     let user_repo: Arc<UserRepo> = Arc::new(UserRepo::new());
+    let post_repo: Arc<PostRepo> = Arc::new(PostRepo::new());
+    let file_repo: Arc<Mutex<FileRepo>> = Arc::new(Mutex::new(FileRepo::new()));
 
     info!("Creating state");
     let state: Arc<AppState> = Arc::new(AppState::new(
@@ -62,6 +64,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         pool,
         storage_utils,
         user_repo,
+        post_repo,
+        file_repo,
     ));
 
     info!("Initializing axum");
