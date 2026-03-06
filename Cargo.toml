@@ -43,4 +43,4 @@ s3 = { version = "0.1.17", features = ["async", "rustls"] }
 bytes = { version = "1.11.1", features = ["serde"] }
 axum_typed_multipart = "0.16.5"
 file_type = { version = "0.8.11", features = ["iana"] }
-serde_json = "1.0.149"
+urlencoding = "2.1.3"
