@@ -14,8 +14,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        label: [ 'sekai', 'sekai-migrator' ]
-        path: [ './docker/api/Dockerfile', './docker/migrator/Dockerfile' ]
+        artifact:
+          - label: 'sekai'
+            path: './docker/api/Dockerfile'
+          - label: 'sekai-migrator'
+            path: './docker/migrator/Dockerfile'
     permissions:
       contents: read
       packages: write
@@ -43,8 +46,8 @@ jobs:
         uses: docker/build-push-action@v6.18.0
         with:
           context: .
-          file: ${{ matrix.path }}
+          file: ${{ matrix.artifact.path }}
           platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ matrix.label }}
+          labels: ${{ matrix.artifact.label }}
