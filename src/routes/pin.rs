@@ -8,7 +8,7 @@ use crate::{repo::pin::DBPin, routes::pin_type, state::AppState};
 async fn get_all_pins(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let pins: Vec<DBPin> = match state.pin_repo.get_all_pin(&state.pool).await {
         Ok(s) => s,
-        Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR).into_response(),
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     };
 
     (StatusCode::OK, Json(pins)).into_response()

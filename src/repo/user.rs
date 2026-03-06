@@ -102,4 +102,19 @@ impl UserRepo {
 
         Ok(user.clone())
     }
+
+    pub async fn update_bio(
+        &self,
+        pool: &PgPool,
+        user_id: Uuid,
+        bio: &str,
+    ) -> Result<(), Box<dyn Error>> {
+        match sqlx::query!("UPDATE users SET bio = $1 WHERE id = $2;", bio, user_id)
+            .fetch_optional(pool)
+            .await
+        {
+            Ok(_) => Ok(()),
+            Err(e) => Err(e.into()),
+        }
+    }
 }

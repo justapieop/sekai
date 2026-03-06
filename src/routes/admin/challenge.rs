@@ -1,21 +1,51 @@
 use std::sync::Arc;
 
 use axum::{
-    Json, Router,
+    Extension, Json, Router,
     extract::{Path, State},
     response::IntoResponse,
     routing::{delete, post},
 };
+use axum_typed_multipart::{FieldData, TryFromMultipart, TypedMultipart};
+use bytes::Bytes;
 use chrono::{DateTime, Utc};
 use reqwest::StatusCode;
-use serde::Deserialize;
 
-use crate::state::AppState;
+use crate::{repo::user::DBUser, state::AppState};
 
 async fn create_challenge(
     State(state): State<Arc<AppState>>,
-    Json(input): Json<DTOCreateChallenge>,
+    Extension(ext): Extension<Arc<DBUser>>,
+    TypedMultipart(input): TypedMultipart<DTOCreateChallenge>,
 ) -> impl IntoResponse {
+    let file_id: u128 = state.snowflake.lock().await.next_id().await.id;
+    match state
+        .file_repo
+        .lock()
+        .await
+        .create_file(&state.pool, file_id, ext.id)
+        .await
+    {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR).into_response(),
+    };
+
+    let content_type: &str =
+        file_type::FileType::from_bytes(&input.cover_image.contents).media_types()[0];
+
+    match state
+        .storage_utils
+        .upload_public_file(
+            input.cover_image.contents,
+            &file_id.to_string(),
+            content_type,
+        )
+        .await
+    {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR).into_response(),
+    };
+
     match state
         .challenge_repo
         .create_challenge(
@@ -28,6 +58,8 @@ async fn create_challenge(
             input.ends_at,
             input.points,
             input.duration,
+            ext.id,
+            file_id,
         )
         .await
     {
@@ -53,7 +85,7 @@ pub fn routes() -> Router<Arc<AppState>> {
         .route("/{id}", delete(delete_challenge))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, TryFromMultipart)]
 pub struct DTOCreateChallenge {
     title: String,
     description: String,
@@ -62,4 +94,5 @@ pub struct DTOCreateChallenge {
     ends_at: DateTime<Utc>,
     points: i32,
     duration: i32,
+    cover_image: FieldData<Bytes>,
 }

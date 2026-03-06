@@ -5,6 +5,8 @@ use chrono::{DateTime, Utc};
 use moka::future::Cache;
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, PgPool};
+use sqlx::postgres::PgRow;
+use tracing::info;
 use uuid::Uuid;
 
 const CACHE_KEY: &str = "CHALLENGE_CACHE";
@@ -21,10 +23,26 @@ pub struct DBChallenge {
     pub ends_at: DateTime<Utc>,
     pub points: i32,
     pub duration: i32,
+    pub cover_image: BigDecimal,
+    pub created_by: Uuid,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct DBUserChallengeUploads {
+    pub user_id: Uuid,
+    pub challenge_id: BigDecimal,
+    pub created_at: DateTime<Utc>,
+    pub attachment_id: BigDecimal,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct DBDeletedAttachmentList {
+    pub id: BigDecimal,
 }
 
 pub struct ChallengeRepo {
     cache: Cache<String, Vec<DBChallenge>>,
+    upload_cache: Cache<Uuid, Vec<DBUserChallengeUploads>>,
 }
 
 impl ChallengeRepo {
@@ -32,6 +50,10 @@ impl ChallengeRepo {
         Self {
             cache: Cache::builder()
                 .max_capacity(1)
+                .time_to_live(Duration::from_hours(1))
+                .build(),
+            upload_cache: Cache::builder()
+                .max_capacity(100)
                 .time_to_live(Duration::from_hours(1))
                 .build(),
         }
@@ -44,7 +66,7 @@ impl ChallengeRepo {
 
         let challenges: &Vec<DBChallenge> = &(match sqlx::query_as!(
             DBChallenge,
-            r#"SELECT * FROM challenges ORDER BY created_at;"#
+            r#"SELECT * FROM challenges WHERE CURRENT_TIMESTAMP < (ends_at + INTERVAL '3 days') ORDER BY created_at;"#
         )
         .fetch_all(pool)
         .await
@@ -90,7 +112,7 @@ impl ChallengeRepo {
         user_id: Uuid,
     ) -> Result<(), Box<dyn Error>> {
         match sqlx::query!(
-            r#"INSERT INTO user_challenges VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING *;"#,
+            r#"INSERT INTO user_challenges (user_id, challenge_id) SELECT $1, $2 WHERE NOT EXISTS (SELECT 1 FROM user_challenges uc JOIN challenges c ON c.id = uc.challenge_id WHERE uc.user_id = $1 AND c.ends_at > NOW() AND uc.finished = false) AND EXISTS (SELECT 1 FROM challenges WHERE id = $2 AND starts_at <= NOW() AND NOW() <= ends_at) ON CONFLICT DO NOTHING RETURNING *;"#,
             user_id,
             BigDecimal::from_u128(id).unwrap_or_default()
         )
@@ -112,7 +134,10 @@ impl ChallengeRepo {
         .fetch_optional(pool)
         .await
         {
-            Ok(_) => Ok(()),
+            Ok(_) => {
+                self.cache.invalidate_all();
+                Ok(())
+            }
             Err(e) => Err(e.into()),
         }
     }
@@ -128,10 +153,12 @@ impl ChallengeRepo {
         ends_at: DateTime<Utc>,
         points: i32,
         duration: i32,
+        user_id: Uuid,
+        cover_id: u128,
     ) -> Result<DBChallenge, Box<dyn Error>> {
         let challenge: &DBChallenge = &(match sqlx::query_as!(
                     DBChallenge,
-                    r#"INSERT INTO challenges (id, title, description, instruction, ends_at, points, duration, starts_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *;"#,
+                    r#"INSERT INTO challenges (id, title, description, instruction, ends_at, points, duration, starts_at, created_by, cover_image) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *;"#,
                     BigDecimal::from_u128(id).unwrap_or_default(),
                     title,
                     description,
@@ -139,7 +166,9 @@ impl ChallengeRepo {
                     ends_at,
                     points,
                     duration,
-                    starts_at
+                    starts_at,
+                    user_id,
+                    BigDecimal::from_u128(cover_id).unwrap_or_default(),
                 ).fetch_one(pool).await {
             Ok(s) => s,
             Err(e) => return Err(e.into()),
@@ -161,13 +190,19 @@ impl ChallengeRepo {
         &self,
         pool: &PgPool,
         user_id: Uuid,
-    ) -> Result<DBChallenge, Box<dyn Error>> {
+    ) -> Result<Vec<DBChallenge>, Box<dyn Error>> {
         match sqlx::query_as!(
-                    DBChallenge,
-                    r#"SELECT * FROM challenges WHERE id = (SELECT challenge_id FROM user_challenges WHERE user_id = $1 ORDER BY created_at DESC);"#,
-                    user_id
-                ).fetch_one(pool).await {
-            Ok(s) => Ok(s),
+            DBChallenge,
+            r#"SELECT * FROM challenges WHERE id IN (SELECT challenge_id FROM user_challenges WHERE user_id = $1) AND CURRENT_TIMESTAMP <= ends_at ORDER BY created_at DESC;"#,
+            user_id
+        )
+        .fetch_all(pool)
+        .await
+        {
+            Ok(s) => {
+                info!("{}", s.len());
+                Ok(s)
+            },
             Err(e) => Err(e.into()),
         }
     }
@@ -178,14 +213,83 @@ impl ChallengeRepo {
         id: u128,
         user_id: Uuid,
         file_id: u128,
-    ) -> Result<(), Box<dyn Error>> {
-        match sqlx::query!(r#"INSERT INTO user_challenges_uploads (user_id, challenge_id, attachment_id) VALUES($1, $2, $3);"#,
+    ) -> Result<DBUserChallengeUploads, Box<dyn Error>> {
+        let upload: &DBUserChallengeUploads = &(match sqlx::query_as!(DBUserChallengeUploads, r#"INSERT INTO user_challenge_uploads (user_id, challenge_id, attachment_id) VALUES($1, $2, $3) RETURNING *;"#,
             user_id,
             BigDecimal::from_u128(id).unwrap_or_default(),
             BigDecimal::from_u128(file_id).unwrap_or_default()
+        ).fetch_one(pool).await {
+            Ok(s) => s,
+            Err(e) => return Err(e.into()),
+        });
+
+        if let Some(mut cached_upload_list) = self.upload_cache.get(&user_id).await {
+            cached_upload_list.push(upload.clone());
+            self.upload_cache.insert(user_id, cached_upload_list).await;
+        }
+
+        Ok(upload.clone())
+    }
+
+    pub async fn get_user_uploads(
+        &self,
+        pool: &PgPool,
+        user_id: Uuid,
+    ) -> Option<Vec<DBUserChallengeUploads>> {
+        if let Some(cached_upload_list) = self.upload_cache.get(&user_id).await {
+            return Some(cached_upload_list);
+        }
+
+        let uploads_list: &Vec<DBUserChallengeUploads> = &(match sqlx::query_as!(
+            DBUserChallengeUploads,
+            r#"SELECT * FROM user_challenge_uploads WHERE user_id = $1 ORDER BY created_at;"#,
+            user_id
+        )
+        .fetch_all(pool)
+        .await
+        {
+            Ok(s) => s,
+            Err(_) => return None,
+        });
+
+        self.upload_cache
+            .insert(user_id, uploads_list.clone())
+            .await;
+
+        Some(uploads_list.clone())
+    }
+
+    pub async fn finish_challenge(
+        &self,
+        pool: &PgPool,
+        user_id: Uuid,
+        challenge_id: u128,
+    ) -> Result<(), Box<dyn Error>> {
+        match sqlx::query!(r#"UPDATE user_challenges SET finished = true WHERE user_id = $1 AND challenge_id = $2;"#,
+            user_id,
+            BigDecimal::from_u128(challenge_id).unwrap_or_default(),
         ).fetch_optional(pool).await {
             Ok(_) => Ok(()),
-            Err(e) => Err(e.into()),
+            Err(e) => Err(e.into())
+        }
+    }
+    pub async fn withdraw(
+        &self,
+        pool: &PgPool,
+        user_id: Uuid,
+        challenge_id: u128,
+    ) -> Result<Vec<DBDeletedAttachmentList>, Box<dyn Error>> {
+        match sqlx::query_as!(
+            DBDeletedAttachmentList,
+            r#"WITH deleted_uploads AS (DELETE FROM user_challenge_uploads WHERE user_id = $1 AND challenge_id = $2 RETURNING attachment_id), deleted_challenge AS (DELETE FROM user_challenges WHERE user_id = $1 AND challenge_id = $2) DELETE FROM file_metadata WHERE id IN (SELECT attachment_id FROM deleted_uploads) RETURNING id;"#,
+            user_id,
+            BigDecimal::from_u128(challenge_id).unwrap_or_default()
+        )
+        .fetch_all(pool)
+        .await
+        {
+            Ok(s) => Ok(s),
+            Err(e) => return Err(e.into()),
         }
     }
 }

@@ -1,5 +1,6 @@
 mod admin;
 mod challenge;
+mod file;
 mod pin;
 mod pin_type;
 mod post;
@@ -51,4 +52,5 @@ pub fn routes(state: Arc<AppState>) -> Router<Arc<AppState>> {
                 middleware::verify_access_token,
             )),
         )
+        .nest("/file", file::routes())
 }

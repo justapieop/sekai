@@ -1,14 +1,17 @@
 use std::{error::Error, time::Duration};
 
 use bigdecimal::{BigDecimal, FromPrimitive};
+use chrono::{DateTime, Utc};
 use moka::future::Cache;
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, prelude::FromRow};
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct DBFileMetadata {
     pub id: BigDecimal,
-    pub file_name: String,
+    pub uploaded_by: Uuid,
+    pub created_at: DateTime<Utc>,
 }
 
 pub struct FileRepo {
@@ -51,13 +54,13 @@ impl FileRepo {
         &mut self,
         pool: &PgPool,
         id: u128,
-        file_name: &str,
+        user_id: Uuid,
     ) -> Result<DBFileMetadata, Box<dyn Error + Send + Sync>> {
         let file: &DBFileMetadata = &(match sqlx::query_as!(
             DBFileMetadata,
-            r#"INSERT INTO file_metadata(id, file_name) VALUES($1, $2) RETURNING *;"#,
+            r#"INSERT INTO file_metadata(id, uploaded_by) VALUES($1, $2) RETURNING *;"#,
             BigDecimal::from_u128(id).unwrap_or_default(),
-            file_name,
+            user_id
         )
         .fetch_one(pool)
         .await

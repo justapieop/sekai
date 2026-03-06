@@ -1,11 +1,12 @@
 use bytes::Bytes;
 use s3::{
     Client, Credentials, Error,
-    types::{CreateBucketOutput, GetObjectOutput, PutObjectOutput},
+    types::{GetObjectOutput, PutObjectOutput},
 };
 use uuid::Uuid;
 
 const BUCKET_NAME: &str = "assets";
+const PUBLIC_BUCKET_NAME: &str = "public";
 
 pub struct StorageUtils {
     s3_client: Client,
@@ -41,6 +42,42 @@ impl StorageUtils {
             )
             .content_type(content_type)
             .body_bytes(data)
+            .send()
+            .await
+    }
+
+    pub async fn delete_public_file(&self, file_name: &str) -> Result<(), Error> {
+        match self
+            .s3_client
+            .objects()
+            .delete(PUBLIC_BUCKET_NAME, file_name)
+            .send()
+            .await
+        {
+            Ok(_) => Ok(()),
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    pub async fn upload_public_file(
+        &self,
+        data: Bytes,
+        file_name: &str,
+        content_type: &str,
+    ) -> Result<PutObjectOutput, Error> {
+        self.s3_client
+            .objects()
+            .put(PUBLIC_BUCKET_NAME, format!("{}", file_name))
+            .content_type(content_type)
+            .body_bytes(data)
+            .send()
+            .await
+    }
+
+    pub async fn fetch_public_file(&self, file_name: &str) -> Result<GetObjectOutput, Error> {
+        self.s3_client
+            .objects()
+            .get(PUBLIC_BUCKET_NAME, format!("{}", file_name))
             .send()
             .await
     }

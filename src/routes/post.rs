@@ -10,7 +10,6 @@ use axum_typed_multipart::{FieldData, TryFromMultipart, TypedMultipart};
 use bytes::Bytes;
 use reqwest::StatusCode;
 use serde::Serialize;
-use uuid::Uuid;
 
 use crate::{
     repo::{post::DBPost, user::DBUser},
@@ -45,7 +44,7 @@ async fn get_all_posts(
 
     let post_list: Vec<DBPost> = match state.post_repo.list_all_posts(&state.pool).await {
         Ok(s) => s,
-        Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR).into_response(),
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     };
 
     let chunked_post_list: Vec<&[DBPost]> = post_list.chunks(page).collect();
@@ -91,7 +90,7 @@ async fn create_post(
         .await
     {
         Ok(s) => s,
-        Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR).into_response(),
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     };
 
     for field in &input.attachments {
@@ -100,23 +99,27 @@ async fn create_post(
         }
         let content_type: &str = file_type::FileType::from_bytes(&field.contents).media_types()[0];
         let file_id: u128 = state.snowflake.lock().await.next_id().await.id;
-        let file_name: String = Uuid::now_v7().to_string();
 
         match state
             .file_repo
             .lock()
             .await
-            .create_file(&state.pool, file_id, &file_name)
+            .create_file(&state.pool, file_id, ext.id)
             .await
         {
-            Ok(s) => {
+            Ok(_) => {
                 match state
                     .storage_utils
-                    .upload_file(ext.id, field.contents.clone(), &s.file_name, content_type)
+                    .upload_file(
+                        ext.id,
+                        field.contents.clone(),
+                        &file_id.to_string(),
+                        content_type,
+                    )
                     .await
                 {
                     Ok(s) => s,
-                    Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR).into_response(),
+                    Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
                 };
             }
             Err(_) => {}
