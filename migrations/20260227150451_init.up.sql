@@ -1,10 +1,3 @@
-CREATE TABLE IF NOT EXISTS file_metadata (
-    id NUMERIC(39, 0) PRIMARY KEY,
-    file_name VARCHAR(256) NOT NULL
-);
-
-CREATE UNIQUE INDEX file_metadata_idx ON file_metadata(id);
-
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -15,6 +8,14 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 CREATE UNIQUE INDEX user_idx ON users(id);
+
+CREATE TABLE IF NOT EXISTS file_metadata (
+    id NUMERIC(39, 0) PRIMARY KEY,
+    uploaded_by UUID NOT NULL REFERENCES users(id) ON UPDATE CASCADE ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE UNIQUE INDEX file_metadata_idx ON file_metadata(id);
 
 CREATE TABLE IF NOT EXISTS posts (
     id NUMERIC(39, 0) PRIMARY KEY,
@@ -70,7 +71,9 @@ CREATE TABLE IF NOT EXISTS challenges (
     starts_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     ends_at TIMESTAMPTZ NOT NULL,
     points INT NOT NULL CHECK(points > 0),
-    duration INT NOT NULL
+    duration INT NOT NULL,
+    cover_image NUMERIC(39, 0) NOT NULL REFERENCES file_metadata(id),
+    created_by UUID NOT NULL REFERENCES users(id) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 CREATE UNIQUE INDEX challenge_idx ON challenges (id);
@@ -79,12 +82,14 @@ CREATE TABLE IF NOT EXISTS user_challenges (
     user_id UUID REFERENCES users(id) ON UPDATE CASCADE ON DELETE CASCADE,
     challenge_id NUMERIC(39, 0) REFERENCES challenges(id) ON UPDATE CASCADE ON DELETE CASCADE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    finished BOOLEAN NOT NULL DEFAULT false,
+    finished_at TIMESTAMPTZ,
     PRIMARY KEY(user_id, challenge_id)
 );
 
 CREATE UNIQUE INDEX user_challenge_idx ON user_challenges(user_id, challenge_id);
 
-CREATE TABLE IF NOT EXISTS user_challenges_uploads (
+CREATE TABLE IF NOT EXISTS user_challenge_uploads (
     user_id UUID REFERENCES users(id) ON UPDATE CASCADE ON DELETE CASCADE,
     challenge_id NUMERIC(39, 0) REFERENCES challenges(id) ON UPDATE CASCADE ON DELETE CASCADE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -92,4 +97,4 @@ CREATE TABLE IF NOT EXISTS user_challenges_uploads (
     PRIMARY KEY(user_id, challenge_id, attachment_id)
 );
 
-CREATE UNIQUE INDEX user_challenges_upload_idx ON user_challenges_uploads(user_id, challenge_id, attachment_id);
+CREATE UNIQUE INDEX user_challenges_upload_idx ON user_challenge_uploads(user_id, challenge_id, attachment_id);
