@@ -24,19 +24,8 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
-  migrator:
-    build:
-      context: .
-      dockerfile: docker/migrator/Dockerfile
-    env_file:
-      - .env
-    networks:
-      - fiber
-
   api:
-    build:
-      context: .
-      dockerfile: docker/api/Dockerfile
+    image: 'ghcr.io/justapieop/sekai:latest'
     restart: always
     env_file:
       - .env

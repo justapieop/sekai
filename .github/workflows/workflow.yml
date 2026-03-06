@@ -13,12 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix:
-        artifact:
-          - label: 'sekai'
-            path: './docker/api/Dockerfile'
-          - label: 'sekai-migrator'
-            path: './docker/migrator/Dockerfile'
     permissions:
       contents: read
       packages: write
@@ -46,8 +40,8 @@ jobs:
         uses: docker/build-push-action@v6.18.0
         with:
           context: .
-          file: ${{ matrix.artifact.path }}
+          file: ./Dockerfile
           platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ matrix.artifact.label }}
+          labels: ${{ steps.meta.outputs.labels}}

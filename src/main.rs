@@ -8,7 +8,7 @@ mod utils;
 use std::{error::Error, sync::Arc};
 
 use axum::Router;
-use sqlx::{PgPool, postgres::PgPoolOptions};
+use sqlx::{migrate, postgres::PgPoolOptions, PgPool};
 use tokio::{net::TcpListener, sync::Mutex};
 use tower::ServiceBuilder;
 use tower_http::{
@@ -58,6 +58,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .connect(&config.database_url)
         .await
         .expect("DATABASE_URL must be connected");
+
+    info!("Performing migration if needed");
+    migrate!().run(&pool).await.unwrap_or_default();
 
     let user_repo: Arc<UserRepo> = Arc::new(UserRepo::new());
     let post_repo: Arc<PostRepo> = Arc::new(PostRepo::new());
