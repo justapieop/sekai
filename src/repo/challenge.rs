@@ -5,7 +5,6 @@ use chrono::{DateTime, Utc};
 use moka::future::Cache;
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, PgPool};
-use sqlx::postgres::PgRow;
 use tracing::info;
 use uuid::Uuid;
 
@@ -265,7 +264,8 @@ impl ChallengeRepo {
         user_id: Uuid,
         challenge_id: u128,
     ) -> Result<(), Box<dyn Error>> {
-        match sqlx::query!(r#"UPDATE user_challenges SET finished = true WHERE user_id = $1 AND challenge_id = $2;"#,
+        match sqlx::query!(
+            r#"UPDATE user_challenges SET finished = true, finished_at = CURRENT_TIMESTAMP WHERE user_id = $1 AND challenge_id = $2;"#,
             user_id,
             BigDecimal::from_u128(challenge_id).unwrap_or_default(),
         ).fetch_optional(pool).await {
@@ -289,7 +289,7 @@ impl ChallengeRepo {
         .await
         {
             Ok(s) => Ok(s),
-            Err(e) => return Err(e.into()),
+            Err(e) => Err(e.into()),
         }
     }
 }
