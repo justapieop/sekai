@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use axum::{
-    Extension, Json, Router,
-    extract::{Path, State},
-    response::IntoResponse,
-    routing::get,
+    extract::{Path, State}, response::IntoResponse, routing::get,
+    Extension,
+    Json,
+    Router,
 };
 use axum_typed_multipart::{FieldData, TryFromMultipart, TypedMultipart};
 use bytes::Bytes;
@@ -107,7 +107,7 @@ async fn upload_for_challenge(
     (StatusCode::OK, Json(metadata)).into_response()
 }
 
-pub async fn withdraw_challenge(
+async fn withdraw_challenge(
     State(state): State<Arc<AppState>>,
     Path(id): Path<u128>,
     Extension(ext): Extension<Arc<DBUser>>,
