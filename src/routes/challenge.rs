@@ -132,6 +132,21 @@ async fn withdraw_challenge(
     StatusCode::OK.into_response()
 }
 
+async fn finish_challenge(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<u128>,
+    Extension(ext): Extension<Arc<DBUser>>,
+) -> impl IntoResponse {
+    match state
+        .challenge_repo
+        .finish_challenge(&state.pool, ext.id, id)
+        .await
+    {
+        Ok(_) => StatusCode::OK.into_response(),
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    }
+}
+
 pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
         .without_v07_checks()
@@ -141,7 +156,8 @@ pub fn routes() -> Router<Arc<AppState>> {
             get(get_challenge)
                 .post(enroll_challenge)
                 .put(upload_for_challenge)
-                .delete(withdraw_challenge),
+                .delete(withdraw_challenge)
+                .patch(finish_challenge),
         )
 }
 
