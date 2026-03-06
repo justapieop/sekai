@@ -1,4 +1,4 @@
-FROM dhi.io/rust:1.94.0-debian13 AS build_stage
+FROM rust:1.94.0-alpine3.23 AS build_stage
 WORKDIR /build
 COPY ../.. .
 RUN cargo build --release
