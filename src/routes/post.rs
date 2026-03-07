@@ -1,10 +1,10 @@
 use std::{collections::HashMap, sync::Arc};
 
 use axum::{
-    Extension, Json, Router,
-    extract::{Path, Query, State},
-    response::IntoResponse,
-    routing::get,
+    extract::{Path, Query, State}, response::IntoResponse, routing::get,
+    Extension,
+    Json,
+    Router,
 };
 use axum_typed_multipart::{FieldData, TryFromMultipart, TypedMultipart};
 use bytes::Bytes;
@@ -20,19 +20,18 @@ async fn get_all_posts(
     State(state): State<Arc<AppState>>,
     Query(query): Query<HashMap<String, String>>,
 ) -> impl IntoResponse {
-    let limit: usize = match query.get("limit").map_or("0", |v| v).parse() {
-        Ok(s) => s,
-        Err(_) => {
+    let (limit, page): (usize, usize) = (
+        if let Ok(s) = query.get("limit").map_or("0", |v| v).parse() {
+            s
+        } else {
             return (StatusCode::BAD_REQUEST, "limit must be an unsigned integer").into_response();
-        }
-    };
-
-    let page: usize = match query.get("page").map_or("0", |v| v).parse() {
-        Ok(s) => s,
-        Err(_) => {
+        },
+        if let Ok(s) = query.get("page").map_or("0", |v| v).parse() {
+            s
+        } else {
             return (StatusCode::BAD_REQUEST, "page must be an unsigned integer").into_response();
-        }
-    };
+        },
+    );
 
     if limit == 0 || page == 0 {
         return (

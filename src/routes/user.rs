@@ -20,19 +20,18 @@ async fn get_all_user(
     State(state): State<Arc<AppState>>,
     Query(query): Query<HashMap<String, String>>,
 ) -> impl IntoResponse {
-    let limit: usize = match query.get("limit").map_or("0", |v| v).parse() {
-        Ok(s) => s,
-        Err(_) => {
+    let (limit, page): (usize, usize) = (
+        if let Ok(s) = query.get("limit").map_or("0", |v| v).parse() {
+            s
+        } else {
             return (StatusCode::BAD_REQUEST, "limit must be an unsigned integer").into_response();
-        }
-    };
-
-    let page: usize = match query.get("page").map_or("0", |v| v).parse() {
-        Ok(s) => s,
-        Err(_) => {
+        },
+        if let Ok(s) = query.get("page").map_or("0", |v| v).parse() {
+            s
+        } else {
             return (StatusCode::BAD_REQUEST, "page must be an unsigned integer").into_response();
-        }
-    };
+        },
+    );
 
     if limit == 0 || page == 0 {
         return (
@@ -71,9 +70,7 @@ async fn get_user_challenge(
         .await
     {
         Ok(s) => (StatusCode::OK, Json(s)).into_response(),
-        Err(_) => {
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     }
 }
 
