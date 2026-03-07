@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use axum::{
-    Json, Router,
-    extract::{Path, State},
-    response::IntoResponse,
+    extract::{Path, State}, response::IntoResponse,
     routing::post,
+    Json,
+    Router,
 };
 use axum_typed_multipart::{TryFromMultipart, TypedMultipart};
 use bytes::Bytes;
@@ -28,7 +28,7 @@ async fn create_pin_type(
         .await
     {
         Ok(s) => s,
-        Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR).into_response(),
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     };
     (StatusCode::OK, Json(pin_type)).into_response()
 }
@@ -56,7 +56,7 @@ async fn create_pin(
         .await
     {
         Ok(s) => s,
-        Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR).into_response(),
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     };
     (StatusCode::OK, Json(pin)).into_response()
 }

@@ -3,7 +3,7 @@ use std::{error::Error, time::Duration};
 use chrono::{DateTime, Utc};
 use moka::future::Cache;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::{prelude::FromRow, PgPool};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -63,13 +63,10 @@ impl UserRepo {
             }
         }
 
-        match sqlx::query_as!(DBUser, r#"SELECT * FROM users WHERE id = $1"#, id)
+        sqlx::query_as!(DBUser, r#"SELECT * FROM users WHERE id = $1"#, id)
             .fetch_optional(pool)
             .await
-        {
-            Ok(s) => s,
-            Err(_) => None,
-        }
+            .unwrap_or_else(|_| None)
     }
 
     pub async fn create_profile(&self, pool: &PgPool, id: Uuid) -> Result<DBUser, Box<dyn Error>> {

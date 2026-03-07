@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use axum::{
-    Extension, Json, Router,
-    extract::{Path, State},
-    response::IntoResponse,
-    routing::{delete, post},
+    extract::{Path, State}, response::IntoResponse, routing::{delete, post},
+    Extension,
+    Json,
+    Router,
 };
 use axum_typed_multipart::{FieldData, TryFromMultipart, TypedMultipart};
 use bytes::Bytes;
@@ -27,7 +27,7 @@ async fn create_challenge(
         .await
     {
         Ok(s) => s,
-        Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR).into_response(),
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     };
 
     let content_type: &str =
@@ -43,7 +43,7 @@ async fn create_challenge(
         .await
     {
         Ok(s) => s,
-        Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR).into_response(),
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     };
 
     match state
@@ -64,7 +64,7 @@ async fn create_challenge(
         .await
     {
         Ok(s) => (StatusCode::OK, Json(s)).into_response(),
-        Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR).into_response(),
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     }
 }
 
@@ -73,8 +73,8 @@ async fn delete_challenge(
     Path(id): Path<u128>,
 ) -> impl IntoResponse {
     match state.challenge_repo.delete_challenge(&state.pool, id).await {
-        Ok(_) => (StatusCode::OK).into_response(),
-        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR).into_response(),
+        Ok(_) => StatusCode::OK.into_response(),
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     }
 }
 

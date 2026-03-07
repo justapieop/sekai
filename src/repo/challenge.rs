@@ -91,17 +91,14 @@ impl ChallengeRepo {
             }
         }
 
-        match sqlx::query_as!(
+        sqlx::query_as!(
             DBChallenge,
             r#"SELECT * FROM challenges WHERE id = $1;"#,
             BigDecimal::from_u128(id).unwrap_or_default()
         )
         .fetch_optional(pool)
         .await
-        {
-            Ok(s) => s,
-            Err(_) => None,
-        }
+        .unwrap_or_else(|_| None)
     }
 
     pub async fn enroll_challenge(
