@@ -1,7 +1,7 @@
 use bytes::Bytes;
 use s3::{
-    Client, Credentials, Error,
-    types::{GetObjectOutput, PutObjectOutput},
+    types::{GetObjectOutput, PutObjectOutput}, Client, Credentials,
+    Error,
 };
 use uuid::Uuid;
 
@@ -13,11 +13,11 @@ pub struct StorageUtils {
 }
 
 impl StorageUtils {
-    pub fn new(endpoint: &str, access_key_id: &str, secret_access_key: &str) -> Self {
+    pub fn new(endpoint: &str, region: &str, access_key_id: &str, secret_access_key: &str) -> Self {
         Self {
             s3_client: Client::builder(endpoint)
                 .expect("S3_ENDPOINT must be a valid S3 instance")
-                .region("auto")
+                .region(region)
                 .auth(s3::Auth::Static(
                     Credentials::new(access_key_id, secret_access_key)
                         .expect("S3_ACCESS_KEY_ID AND S3_SECRET_ACCESS_KEY must be valid"),

@@ -48,6 +48,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     info!("Connecting to S3");
     let storage_utils: Arc<StorageUtils> = Arc::new(StorageUtils::new(
         &config.s3_endpoint,
+        &config.s3_region,
         &config.s3_access_key_id,
         &config.s3_secret_access_key,
     ));
