@@ -1,16 +1,17 @@
-use std::{collections::HashMap, sync::Arc};
-
 use axum::{
     extract::{Query, State}, response::IntoResponse, routing::get,
     Extension,
     Json,
     Router,
 };
-use bigdecimal::BigDecimal;
+use bigdecimal::{BigDecimal, ToPrimitive};
 use bytes::Bytes;
+use chrono::{DateTime, Utc};
 use reqwest::StatusCode;
 use serde::Serialize;
+use std::{collections::HashMap, sync::Arc};
 
+use crate::repo::challenge::DBChallenge;
 use crate::{
     repo::{challenge::DBUserChallengeUploads, user::DBUser},
     state::AppState,
@@ -78,9 +79,18 @@ async fn get_user_uploads(
     State(state): State<Arc<AppState>>,
     Extension(ext): Extension<Arc<DBUser>>,
 ) -> impl IntoResponse {
+    let current_challenge: DBChallenge = match state
+        .challenge_repo
+        .get_user_challenge(&state.pool, ext.id)
+        .await
+    {
+        Ok(s) => s,
+        Err(_) => return (StatusCode::NOT_FOUND, "Challenge not found").into_response(),
+    };
+
     let uploads: Vec<DBUserChallengeUploads> = match state
         .challenge_repo
-        .get_user_uploads(&state.pool, ext.id)
+        .get_user_uploads(&state.pool, ext.id, current_challenge.id.to_u128().unwrap())
         .await
     {
         Some(s) => s,
@@ -100,6 +110,7 @@ async fn get_user_uploads(
                     challenge_uploads.push(GetAllUserUploadsResponse {
                         challenge_id: upload.challenge_id,
                         content: bytes,
+                        created_at: upload.created_at,
                     });
                 }
             }
@@ -147,7 +158,7 @@ pub fn routes() -> Router<Arc<AppState>> {
         .without_v07_checks()
         .route("/", get(get_me).patch(update_user_bio))
         .route("/challenge", get(get_user_challenge))
-        .route("/gallery", get(get_user_uploads))
+        .route("/challenge/gallery", get(get_user_uploads))
 }
 
 #[derive(Debug, Serialize)]
@@ -161,4 +172,5 @@ pub struct GetAllUserResponse {
 pub struct GetAllUserUploadsResponse {
     challenge_id: BigDecimal,
     content: Bytes,
+    created_at: DateTime<Utc>,
 }

@@ -36,7 +36,7 @@ async fn create_challenge(
     match state
         .storage_utils
         .upload_public_file(
-            input.cover_image.contents,
+            &input.cover_image.contents,
             &file_id.to_string(),
             content_type,
         )

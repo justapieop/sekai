@@ -1,8 +1,10 @@
 use bytes::Bytes;
+use moka::future::Cache;
 use s3::{
     types::{GetObjectOutput, PutObjectOutput}, Client, Credentials,
     Error,
 };
+use std::time::Duration;
 use uuid::Uuid;
 
 const BUCKET_NAME: &str = "assets";
@@ -10,6 +12,7 @@ const PUBLIC_BUCKET_NAME: &str = "public";
 
 pub struct StorageUtils {
     s3_client: Client,
+    cache: Cache<String, Bytes>,
 }
 
 impl StorageUtils {
@@ -24,6 +27,10 @@ impl StorageUtils {
                 ))
                 .build()
                 .expect("S3_ENDPOINT must be a valid S3 instance"),
+            cache: Cache::builder()
+                .max_capacity(1000)
+                .time_to_live(Duration::from_hours(1))
+                .build(),
         }
     }
 
@@ -47,6 +54,7 @@ impl StorageUtils {
     }
 
     pub async fn delete_public_file(&self, file_name: &str) -> Result<(), Error> {
+        self.cache.invalidate_all();
         match self
             .s3_client
             .objects()
@@ -61,25 +69,39 @@ impl StorageUtils {
 
     pub async fn upload_public_file(
         &self,
-        data: Bytes,
+        data: &Bytes,
         file_name: &str,
         content_type: &str,
     ) -> Result<PutObjectOutput, Error> {
+        self.cache
+            .insert(String::from(file_name), data.clone())
+            .await;
         self.s3_client
             .objects()
             .put(PUBLIC_BUCKET_NAME, format!("{}", file_name))
             .content_type(content_type)
-            .body_bytes(data)
+            .body_bytes(data.clone())
             .send()
             .await
     }
 
-    pub async fn fetch_public_file(&self, file_name: &str) -> Result<GetObjectOutput, Error> {
-        self.s3_client
+    pub async fn fetch_public_file(&self, file_name: &str) -> Result<Bytes, Error> {
+        if let Some(s) = self.cache.get(file_name).await {
+            return Ok(s);
+        }
+        match self
+            .s3_client
             .objects()
             .get(PUBLIC_BUCKET_NAME, format!("{}", file_name))
             .send()
             .await
+        {
+            Ok(s) => match s.bytes().await {
+                Ok(b) => Ok(b),
+                Err(e) => Err(e.into()),
+            },
+            Err(e) => Err(e.into()),
+        }
     }
 
     pub async fn fetch_file(

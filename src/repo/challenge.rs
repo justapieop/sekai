@@ -186,19 +186,16 @@ impl ChallengeRepo {
         &self,
         pool: &PgPool,
         user_id: Uuid,
-    ) -> Result<Vec<DBChallenge>, Box<dyn Error>> {
+    ) -> Result<DBChallenge, Box<dyn Error>> {
         match sqlx::query_as!(
             DBChallenge,
-            r#"SELECT * FROM challenges WHERE id IN (SELECT challenge_id FROM user_challenges WHERE user_id = $1) AND CURRENT_TIMESTAMP <= ends_at ORDER BY created_at DESC;"#,
+            r#"SELECT * FROM challenges WHERE id IN (SELECT challenge_id FROM user_challenges WHERE user_id = $1) AND CURRENT_TIMESTAMP <= ends_at ORDER BY created_at DESC LIMIT 1;"#,
             user_id
         )
-        .fetch_all(pool)
+        .fetch_one(pool)
         .await
         {
-            Ok(s) => {
-                info!("{}", s.len());
-                Ok(s)
-            },
+            Ok(s) => Ok(s),
             Err(e) => Err(e.into()),
         }
     }
@@ -231,6 +228,7 @@ impl ChallengeRepo {
         &self,
         pool: &PgPool,
         user_id: Uuid,
+        challenge_id: u128,
     ) -> Option<Vec<DBUserChallengeUploads>> {
         if let Some(cached_upload_list) = self.upload_cache.get(&user_id).await {
             return Some(cached_upload_list);
@@ -238,8 +236,9 @@ impl ChallengeRepo {
 
         let uploads_list: &Vec<DBUserChallengeUploads> = &(match sqlx::query_as!(
             DBUserChallengeUploads,
-            r#"SELECT * FROM user_challenge_uploads WHERE user_id = $1 ORDER BY created_at;"#,
-            user_id
+            r#"SELECT * FROM user_challenge_uploads WHERE user_id = $1 AND challenge_id = $2 ORDER BY created_at;"#,
+            user_id,
+            BigDecimal::from_u128(challenge_id).unwrap_or_default(),
         )
         .fetch_all(pool)
         .await
