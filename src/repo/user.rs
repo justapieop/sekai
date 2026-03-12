@@ -14,6 +14,9 @@ pub struct DBUser {
     pub bio: String,
     pub is_admin: bool,
     pub points: i128,
+    pub email: String,
+    pub name: String,
+    pub avatar_url: String,
 }
 
 const CACHE_KEY: &str = "USER_CACHE";
@@ -69,7 +72,14 @@ impl UserRepo {
             .unwrap_or_else(|_| None)
     }
 
-    pub async fn create_profile(&self, pool: &PgPool, id: Uuid) -> Result<DBUser, Box<dyn Error>> {
+    pub async fn create_profile(
+        &self,
+        pool: &PgPool,
+        id: Uuid,
+        email: &str,
+        name: &str,
+        avatar_url: &str,
+    ) -> Result<DBUser, Box<dyn Error>> {
         if let Some(cached_user_list) = self.cache.get(CACHE_KEY).await {
             if let Some(user) = cached_user_list.iter().find(|u| u.id == id) {
                 return Ok(user.clone());
@@ -78,8 +88,11 @@ impl UserRepo {
 
         let user: &DBUser = &(match sqlx::query_as!(
             DBUser,
-            r#"INSERT INTO users(id) VALUES ($1) ON CONFLICT (id) DO UPDATE SET id = users.id RETURNING *;"#,
-            id
+            r#"INSERT INTO users(id, email, name, avatar_url) VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO UPDATE SET id = users.id RETURNING *;"#,
+            id,
+            email,
+            name,
+            avatar_url
         )
         .fetch_one(pool)
         .await

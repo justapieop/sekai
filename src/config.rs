@@ -10,6 +10,7 @@ pub struct Config {
     pub s3_access_key_id: String,
     pub s3_secret_access_key: String,
     pub s3_region: String,
+    pub authgear_webhook_secret: String,
 }
 
 const DEFAULT_HOST: &str = "127.0.0.1:3000";
@@ -31,6 +32,8 @@ impl Config {
             s3_secret_access_key: env::var("S3_SECRET_ACCESS_KEY")
                 .expect("S3_SECRET_ACCESS_KEY must be set"),
             s3_region: env::var("S3_REGION").unwrap_or(String::from(DEFAULT_S3_REGION)),
+            authgear_webhook_secret: env::var("AUTHGEAR_WEBHOOK_SECRETS")
+                .expect("AUTHGEAR_WEBHOOK_SECRETS must be set"),
         }
     }
 }

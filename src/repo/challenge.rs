@@ -5,7 +5,7 @@ use chrono::{DateTime, Utc};
 use moka::future::Cache;
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, PgPool};
-use tracing::info;
+use tracing::error;
 use uuid::Uuid;
 
 const CACHE_KEY: &str = "CHALLENGE_CACHE";
@@ -24,6 +24,15 @@ pub struct DBChallenge {
     pub duration: i32,
     pub cover_image: BigDecimal,
     pub created_by: Uuid,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct DBUserChallenge {
+    pub user_id: Uuid,
+    pub challenge_id: BigDecimal,
+    pub joined_at: DateTime<Utc>,
+    pub finished: bool,
+    pub finished_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -186,10 +195,10 @@ impl ChallengeRepo {
         &self,
         pool: &PgPool,
         user_id: Uuid,
-    ) -> Result<DBChallenge, Box<dyn Error>> {
+    ) -> Result<DBUserChallenge, Box<dyn Error>> {
         match sqlx::query_as!(
-            DBChallenge,
-            r#"SELECT * FROM challenges WHERE id IN (SELECT challenge_id FROM user_challenges WHERE user_id = $1) AND CURRENT_TIMESTAMP <= ends_at ORDER BY created_at DESC LIMIT 1;"#,
+            DBUserChallenge,
+            r#"SELECT * FROM user_challenges uc WHERE user_id = $1 AND (SELECT ends_at FROM challenges WHERE id = uc.challenge_id) > CURRENT_TIMESTAMP ORDER BY joined_at DESC LIMIT 1;"#,
             user_id
         )
         .fetch_one(pool)

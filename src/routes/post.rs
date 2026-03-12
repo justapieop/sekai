@@ -1,5 +1,9 @@
 use std::{collections::HashMap, sync::Arc};
 
+use crate::{
+    repo::{post::DBPost, user::DBUser},
+    state::AppState,
+};
 use axum::{
     extract::{Path, Query, State}, response::IntoResponse, routing::get,
     Extension,
@@ -10,11 +14,6 @@ use axum_typed_multipart::{FieldData, TryFromMultipart, TypedMultipart};
 use bytes::Bytes;
 use reqwest::StatusCode;
 use serde::Serialize;
-
-use crate::{
-    repo::{post::DBPost, user::DBUser},
-    state::AppState,
-};
 
 async fn get_all_posts(
     State(state): State<Arc<AppState>>,
@@ -84,13 +83,17 @@ async fn create_post(
             &state.pool,
             state.snowflake.lock().await.next_id().await.id,
             ext.id,
-            input.content,
+            &input.content,
         )
         .await
     {
         Ok(s) => s,
         Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     };
+
+    if input.attachments.is_empty() {
+        return (StatusCode::OK, Json(post)).into_response();
+    }
 
     for field in &input.attachments {
         if input.attachments.len() > 10 {

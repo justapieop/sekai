@@ -4,7 +4,7 @@ use bigdecimal::{BigDecimal, FromPrimitive};
 use chrono::{DateTime, Utc};
 use moka::future::Cache;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::{prelude::FromRow, PgPool};
 use uuid::Uuid;
 
 const CACHE_KEY: &str = "POST_CACHE";
@@ -92,7 +92,7 @@ impl PostRepo {
         pool: &PgPool,
         id: u128,
         author_id: Uuid,
-        content: String,
+        content: &str,
     ) -> Result<DBPost, Box<dyn Error>> {
         let post: &DBPost = &(match sqlx::query_as!(
             DBPost,

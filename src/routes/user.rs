@@ -11,7 +11,7 @@ use reqwest::StatusCode;
 use serde::Serialize;
 use std::{collections::HashMap, sync::Arc};
 
-use crate::repo::challenge::DBChallenge;
+use crate::repo::challenge::DBUserChallenge;
 use crate::{
     repo::{challenge::DBUserChallengeUploads, user::DBUser},
     state::AppState,
@@ -79,7 +79,7 @@ async fn get_user_uploads(
     State(state): State<Arc<AppState>>,
     Extension(ext): Extension<Arc<DBUser>>,
 ) -> impl IntoResponse {
-    let current_challenge: DBChallenge = match state
+    let current_challenge: DBUserChallenge = match state
         .challenge_repo
         .get_user_challenge(&state.pool, ext.id)
         .await
@@ -90,7 +90,11 @@ async fn get_user_uploads(
 
     let uploads: Vec<DBUserChallengeUploads> = match state
         .challenge_repo
-        .get_user_uploads(&state.pool, ext.id, current_challenge.id.to_u128().unwrap())
+        .get_user_uploads(
+            &state.pool,
+            ext.id,
+            current_challenge.challenge_id.to_u128().unwrap(),
+        )
         .await
     {
         Some(s) => s,
