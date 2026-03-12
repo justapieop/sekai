@@ -21,6 +21,7 @@ pub struct DBPost {
 
 pub struct PostRepo {
     cache: Cache<String, Vec<DBPost>>,
+    attachment_cache: Cache<u128, Vec<BigDecimal>>,
 }
 
 impl PostRepo {
@@ -29,6 +30,10 @@ impl PostRepo {
             cache: Cache::builder()
                 .max_capacity(1)
                 .time_to_live(Duration::from_hours(1))
+                .build(),
+            attachment_cache: Cache::builder()
+                .max_capacity(1000)
+                .time_to_live(Duration::from_hours(12))
                 .build(),
         }
     }
@@ -53,16 +58,24 @@ impl PostRepo {
     }
 
     pub async fn get_post_attachments(&self, pool: &PgPool, id: u128) -> Option<Vec<BigDecimal>> {
-        match sqlx::query_scalar!(
+        if let Some(s) = self.attachment_cache.get(&id).await {
+            return Some(s);
+        }
+
+        let ids: &Vec<BigDecimal> = &(match sqlx::query_scalar!(
             r#"SELECT attachment_id FROM post_attachments WHERE post_id = $1;"#,
             BigDecimal::from_u128(id).unwrap_or_default()
         )
         .fetch_all(pool)
         .await
         {
-            Ok(s) => Some(s),
+            Ok(s) => s,
             Err(_) => return None,
-        }
+        });
+
+        self.attachment_cache.insert(id, ids.clone()).await;
+
+        Some(ids.clone())
     }
 
     pub async fn list_all_posts(&self, pool: &PgPool) -> Option<Vec<DBPost>> {
