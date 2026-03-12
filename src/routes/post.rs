@@ -49,7 +49,7 @@ async fn get_all_posts(
         return (StatusCode::OK, Json(post_list)).into_response();
     }
 
-    let chunked_post_list: Vec<&[DBPost]> = post_list.chunks(page).collect();
+    let chunked_post_list: Vec<&[DBPost]> = post_list.chunks(limit).collect();
 
     (
         StatusCode::OK,
