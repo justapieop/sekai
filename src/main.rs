@@ -5,10 +5,11 @@ mod routes;
 mod state;
 mod utils;
 
-use std::{error::Error, sync::Arc};
-
 use axum::Router;
+use moka::future::Cache;
 use sqlx::{migrate, postgres::PgPoolOptions, PgPool};
+use std::time::Duration;
+use std::{error::Error, sync::Arc};
 use tokio::{net::TcpListener, sync::Mutex};
 use tower::ServiceBuilder;
 use tower_http::{
@@ -62,8 +63,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .expect("DATABASE_URL must be connected");
 
     info!("Verifying webhook secret");
-    let signature_utils: Arc<Mutex<Signature>> =
-        Arc::from(Mutex::from(Signature::new(&config.authgear_webhook_secret)));
+    let signature_utils: Arc<Signature> =
+        Arc::from(Signature::new(&config.authgear_webhook_secret));
 
     info!("Performing migration if needed");
     migrate!().run(&pool).await.unwrap_or_default();
@@ -74,6 +75,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let pin_repo: Arc<PinRepo> = Arc::new(PinRepo::new());
     let pin_type_repo: Arc<PinTypeRepo> = Arc::new(PinTypeRepo::new());
     let challenge_repo: Arc<ChallengeRepo> = Arc::new(ChallengeRepo::new());
+    let webhook_cache: Arc<Cache<String, bool>> = Arc::new(
+        Cache::builder()
+            .max_capacity(1000)
+            .time_to_live(Duration::from_hours(24))
+            .build(),
+    );
 
     info!("Creating state");
     let state: Arc<AppState> = Arc::new(AppState::new(
@@ -88,6 +95,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         pin_type_repo,
         challenge_repo,
         signature_utils,
+        webhook_cache,
     ));
 
     info!("Initializing axum");

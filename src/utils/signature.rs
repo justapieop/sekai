@@ -1,6 +1,7 @@
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
 
+#[derive(Debug, Clone)]
 pub struct Signature {
     hmac: Hmac<Sha256>,
 }
@@ -13,10 +14,9 @@ impl Signature {
         }
     }
 
-    pub fn verify(&mut self, msg: &[u8], received_hmac: &[u8]) -> bool {
-        self.hmac.update(msg);
-        let res = self.hmac.clone().finalize();
-
-        res.into_bytes().as_slice() == received_hmac
+    pub fn verify(&self, msg: &[u8], received_hmac: &[u8]) -> bool {
+        let mut mac_checker = self.hmac.clone();
+        mac_checker.update(msg);
+        mac_checker.verify_slice(received_hmac).is_ok()
     }
 }

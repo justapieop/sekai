@@ -2,7 +2,7 @@ use std::{str::FromStr, sync::Arc};
 
 use crate::{repo::user::DBUser, AppState};
 
-use tracing::error;
+use tracing::{error, info};
 
 use axum::body::to_bytes;
 use axum::http::HeaderValue;
@@ -16,6 +16,7 @@ use axum::{
     Extension,
 };
 use bytes::Bytes;
+use serde::Deserialize;
 use uuid::Uuid;
 
 pub async fn verify_access_token(
@@ -103,27 +104,55 @@ pub async fn check_signature(
     next: Next,
 ) -> Response {
     let (parts, body) = req.into_parts();
-    let signature: &HeaderValue = match parts.headers.get("x-authgear-body-signature") {
+
+    let signature_header = match parts.headers.get("x-authgear-body-signature") {
         None => return StatusCode::BAD_REQUEST.into_response(),
         Some(s) => s,
     };
-    let body_bytes: Bytes = match to_bytes(body, usize::MAX).await {
+
+    let signature_hex = match signature_header.to_str() {
         Ok(s) => s,
         Err(_) => return StatusCode::BAD_REQUEST.into_response(),
     };
 
-    if !state
-        .signature
-        .lock()
-        .await
-        .verify(body_bytes.clone().iter().as_slice(), signature.as_bytes())
-    {
-        return StatusCode::BAD_REQUEST.into_response();
+    let received_hmac_bytes = match hex::decode(signature_hex) {
+        Ok(b) => b,
+        Err(_) => return StatusCode::BAD_REQUEST.into_response(),
+    };
+
+    let body_bytes: Bytes = match axum::body::to_bytes(body, usize::MAX).await {
+        Ok(s) => s,
+        Err(_) => return StatusCode::BAD_REQUEST.into_response(),
+    };
+
+    if !state.signature.verify(&body_bytes, &received_hmac_bytes) {
+        return StatusCode::UNAUTHORIZED.into_response();
     }
 
-    let new_body: Body = Body::from(body_bytes.clone());
+    let webhook_payload: WebhookIdPayload = match serde_json::from_slice(&body_bytes) {
+        Ok(payload) => payload,
+        Err(_) => return StatusCode::BAD_REQUEST.into_response(),
+    };
 
-    let new_req: Request = Request::from_parts(parts, new_body);
+    let event_id = webhook_payload.id;
 
-    next.run(new_req).await
+    if state.webhook_cache.contains_key(&event_id) {
+        return StatusCode::OK.into_response();
+    }
+
+    let new_body = Body::from(body_bytes);
+    let new_req = Request::from_parts(parts, new_body);
+
+    let response = next.run(new_req).await;
+
+    if response.status().is_success() {
+        state.webhook_cache.insert(event_id, true).await;
+    }
+
+    response
+}
+
+#[derive(Deserialize)]
+struct WebhookIdPayload {
+    id: String,
 }
