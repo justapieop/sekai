@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS post_comments;
 DROP TABLE IF EXISTS user_challenge_uploads;
 DROP TABLE IF EXISTS post_attachments;
 DROP TABLE IF EXISTS posts;

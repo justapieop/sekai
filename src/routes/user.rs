@@ -82,8 +82,8 @@ async fn get_user_challenge(
         .get_user_challenge(&mut tx, ext.id)
         .await
     {
-        Ok(s) => s,
-        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+        Some(s) => s,
+        None => return StatusCode::NOT_FOUND.into_response(),
     };
 
     match tx.commit().await {
@@ -105,8 +105,8 @@ async fn get_user_uploads(
         .get_user_challenge(&mut tx, ext.id)
         .await
     {
-        Ok(s) => s,
-        Err(_) => return (StatusCode::NOT_FOUND, "Challenge not found").into_response(),
+        Some(s) => s,
+        None => return (StatusCode::NOT_FOUND, "Challenge not found").into_response(),
     };
 
     let uploads: Vec<DBUserChallengeUploads> = match state

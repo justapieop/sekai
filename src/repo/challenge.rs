@@ -205,7 +205,7 @@ impl ChallengeRepo {
         &self,
         pool: &mut Transaction<'_, Postgres>,
         user_id: Uuid,
-    ) -> Result<DBUserChallenge, Box<dyn Error>> {
+    ) -> Option<DBUserChallenge> {
         match sqlx::query_as!(
             DBUserChallenge,
             r#"SELECT * FROM user_challenges uc WHERE user_id = $1 AND (SELECT ends_at FROM challenges WHERE id = uc.challenge_id) > CURRENT_TIMESTAMP ORDER BY joined_at DESC LIMIT 1;"#,
@@ -214,8 +214,8 @@ impl ChallengeRepo {
         .fetch_one(&mut **pool)
         .await
         {
-            Ok(s) => Ok(s),
-            Err(e) => Err(e.into()),
+            Ok(s) => Some(s),
+            Err(_) => None,
         }
     }
 

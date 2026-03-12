@@ -109,4 +109,18 @@ CREATE TABLE IF NOT EXISTS user_challenge_uploads
     PRIMARY KEY (user_id, challenge_id, attachment_id)
 );
 
-CREATE UNIQUE INDEX user_challenges_upload_idx ON user_challenge_uploads (user_id, challenge_id, attachment_id);
+CREATE UNIQUE INDEX user_challenge_upload_idx ON user_challenge_uploads (user_id, challenge_id, attachment_id);
+
+CREATE TABLE IF NOT EXISTS post_comments
+(
+    id            NUMERIC(39, 0) PRIMARY KEY,
+    user_id       UUID           NOT NULL REFERENCES users (id) ON UPDATE CASCADE ON DELETE CASCADE,
+    post_id       NUMERIC(39, 0) NOT NULL REFERENCES posts (id) ON UPDATE CASCADE ON DELETE CASCADE,
+    reply_to      NUMERIC(39, 0) NULL,
+    content       TEXT           NOT NULL,
+    attachment_id NUMERIC(39, 0) NULL,
+    CONSTRAINT fk_reply_to FOREIGN KEY (reply_to) REFERENCES post_comments (id) ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT fk_attachment_id FOREIGN KEY (attachment_id) REFERENCES file_metadata (id) ON UPDATE CASCADE ON DELETE SET NULL
+);
+
+CREATE UNIQUE INDEX post_comment_idx ON post_comments (id);
