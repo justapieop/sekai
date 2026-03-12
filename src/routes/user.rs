@@ -1,3 +1,9 @@
+use crate::repo::challenge::DBUserChallenge;
+use crate::{
+    repo::{challenge::DBUserChallengeUploads, user::DBUser},
+    state::AppState,
+};
+use axum::extract::Path;
 use axum::{
     extract::{Query, State}, response::IntoResponse, routing::get,
     Extension,
@@ -10,12 +16,7 @@ use chrono::{DateTime, Utc};
 use reqwest::StatusCode;
 use serde::Serialize;
 use std::{collections::HashMap, sync::Arc};
-
-use crate::repo::challenge::DBUserChallenge;
-use crate::{
-    repo::{challenge::DBUserChallengeUploads, user::DBUser},
-    state::AppState,
-};
+use uuid::Uuid;
 
 async fn get_all_user(
     State(state): State<Arc<AppState>>,
@@ -157,12 +158,23 @@ async fn get_me(
     (StatusCode::OK, Json(ext)).into_response()
 }
 
+async fn get_user_by_id(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<Uuid>,
+) -> impl IntoResponse {
+    match state.user_repo.get_user_by_id(&state.pool, id).await {
+        None => StatusCode::NOT_FOUND.into_response(),
+        Some(s) => (StatusCode::OK, Json(s)).into_response(),
+    }
+}
+
 pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
         .without_v07_checks()
         .route("/", get(get_me).patch(update_user_bio))
         .route("/challenge", get(get_user_challenge))
         .route("/challenge/gallery", get(get_user_uploads))
+        .route("/{id}", get(get_user_by_id))
 }
 
 #[derive(Debug, Serialize)]
