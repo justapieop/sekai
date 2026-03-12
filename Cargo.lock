@@ -2394,8 +2394,6 @@ dependencies = [
  "chrono",
  "dotenvy",
  "file_type",
- "futures-util",
- "hex",
  "hmac",
  "jsonwebtoken",
  "jwks",
