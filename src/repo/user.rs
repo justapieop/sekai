@@ -88,7 +88,7 @@ impl UserRepo {
 
         let user: &DBUser = &(match sqlx::query_as!(
             DBUser,
-            r#"INSERT INTO users(id, email, name, avatar_url) VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO UPDATE SET id = users.id RETURNING *;"#,
+            r#"INSERT INTO users(id, email, name, avatar_url) VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, name = EXCLUDED.name, avatar_url = excluded.avatar_url RETURNING *;"#,
             id,
             email,
             name,
