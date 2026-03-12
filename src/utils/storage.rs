@@ -7,16 +7,22 @@ use s3::{
 use std::time::Duration;
 use uuid::Uuid;
 
-const BUCKET_NAME: &str = "assets";
-const PUBLIC_BUCKET_NAME: &str = "public";
+const PUBLIC_DIR_NAME: &str = "public";
 
 pub struct StorageUtils {
     s3_client: Client,
     cache: Cache<String, Bytes>,
+    bucket_name: String,
 }
 
 impl StorageUtils {
-    pub fn new(endpoint: &str, region: &str, access_key_id: &str, secret_access_key: &str) -> Self {
+    pub fn new(
+        endpoint: &str,
+        region: &str,
+        access_key_id: &str,
+        secret_access_key: &str,
+        bucket_name: &str,
+    ) -> Self {
         Self {
             s3_client: Client::builder(endpoint)
                 .expect("S3_ENDPOINT must be a valid S3 instance")
@@ -31,6 +37,7 @@ impl StorageUtils {
                 .max_capacity(1000)
                 .time_to_live(Duration::from_hours(1))
                 .build(),
+            bucket_name: String::from(bucket_name),
         }
     }
 
@@ -44,7 +51,7 @@ impl StorageUtils {
         self.s3_client
             .objects()
             .put(
-                BUCKET_NAME,
+                self.bucket_name.clone(),
                 format!("{}/{}", user_id.to_string(), file_name),
             )
             .content_type(content_type)
@@ -58,7 +65,10 @@ impl StorageUtils {
         match self
             .s3_client
             .objects()
-            .delete(PUBLIC_BUCKET_NAME, file_name)
+            .delete(
+                self.bucket_name.clone(),
+                format!("{}/{}", PUBLIC_DIR_NAME, file_name),
+            )
             .send()
             .await
         {
@@ -78,7 +88,10 @@ impl StorageUtils {
             .await;
         self.s3_client
             .objects()
-            .put(PUBLIC_BUCKET_NAME, format!("{}", file_name))
+            .put(
+                self.bucket_name.clone(),
+                format!("{}/{}", PUBLIC_DIR_NAME, file_name),
+            )
             .content_type(content_type)
             .body_bytes(data.clone())
             .send()
@@ -92,7 +105,10 @@ impl StorageUtils {
         match self
             .s3_client
             .objects()
-            .get(PUBLIC_BUCKET_NAME, format!("{}", file_name))
+            .get(
+                self.bucket_name.clone(),
+                format!("{}/{}", PUBLIC_DIR_NAME, file_name),
+            )
             .send()
             .await
         {
@@ -112,7 +128,7 @@ impl StorageUtils {
         self.s3_client
             .objects()
             .get(
-                BUCKET_NAME,
+                self.bucket_name.clone(),
                 format!("{}/{}", user_id.to_string(), file_name),
             )
             .send()
@@ -123,7 +139,7 @@ impl StorageUtils {
         self.s3_client
             .objects()
             .delete(
-                BUCKET_NAME,
+                self.bucket_name.clone(),
                 format!("{}/{}", user_id.to_string(), file_name),
             )
             .send()

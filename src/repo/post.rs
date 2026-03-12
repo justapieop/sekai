@@ -33,9 +33,41 @@ impl PostRepo {
         }
     }
 
-    pub async fn list_all_posts(&self, pool: &PgPool) -> Result<Vec<DBPost>, Box<dyn Error>> {
+    pub async fn link_post_attachment(
+        &self,
+        pool: &PgPool,
+        post_id: u128,
+        attachment_id: u128,
+    ) -> Result<(), Box<dyn Error>> {
+        match sqlx::query!(
+            r#"INSERT INTO post_attachments (post_id, attachment_id) VALUES ($1, $2)"#,
+            BigDecimal::from_u128(post_id).unwrap_or_default(),
+            BigDecimal::from_u128(attachment_id).unwrap_or_default()
+        )
+        .fetch_optional(pool)
+        .await
+        {
+            Ok(_) => Ok(()),
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    pub async fn get_post_attachments(&self, pool: &PgPool, id: u128) -> Option<Vec<BigDecimal>> {
+        match sqlx::query_scalar!(
+            r#"SELECT attachment_id FROM post_attachments WHERE post_id = $1;"#,
+            BigDecimal::from_u128(id).unwrap_or_default()
+        )
+        .fetch_all(pool)
+        .await
+        {
+            Ok(s) => Some(s),
+            Err(_) => return None,
+        }
+    }
+
+    pub async fn list_all_posts(&self, pool: &PgPool) -> Option<Vec<DBPost>> {
         if let Some(cached_post_list) = self.cache.get(CACHE_KEY).await {
-            return Ok(cached_post_list);
+            return Some(cached_post_list);
         }
 
         let post_list: &Vec<DBPost> =
@@ -44,14 +76,14 @@ impl PostRepo {
                 .await
             {
                 Ok(s) => s,
-                Err(e) => return Err(e.into()),
+                Err(e) => return None,
             });
 
         self.cache
             .insert(String::from(CACHE_KEY), post_list.clone())
             .await;
 
-        Ok(post_list.clone())
+        Some(post_list.clone())
     }
 
     pub async fn get_post_by_id(&self, pool: &PgPool, id: u128) -> Option<DBPost> {
@@ -70,10 +102,8 @@ impl PostRepo {
         }
 
         let post_list: Vec<DBPost> = match self.list_all_posts(pool).await {
-            Ok(s) => s,
-            Err(_) => {
-                return None;
-            }
+            Some(s) => s,
+            None => return None,
         };
 
         let post: &DBPost = match post_list

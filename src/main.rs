@@ -6,9 +6,7 @@ mod state;
 mod utils;
 
 use axum::Router;
-use moka::future::Cache;
 use sqlx::{migrate, postgres::PgPoolOptions, PgPool};
-use std::time::Duration;
 use std::{error::Error, sync::Arc};
 use tokio::{net::TcpListener, sync::Mutex};
 use tower::ServiceBuilder;
@@ -53,6 +51,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         &config.s3_region,
         &config.s3_access_key_id,
         &config.s3_secret_access_key,
+        &config.s3_bucket_name,
     ));
 
     info!("Connecting to database");

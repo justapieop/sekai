@@ -1,5 +1,3 @@
-use std::{collections::HashMap, sync::Arc};
-
 use crate::{
     repo::{post::DBPost, user::DBUser},
     state::AppState,
@@ -11,9 +9,11 @@ use axum::{
     Router,
 };
 use axum_typed_multipart::{FieldData, TryFromMultipart, TypedMultipart};
+use bigdecimal::BigDecimal;
 use bytes::Bytes;
 use reqwest::StatusCode;
 use serde::Serialize;
+use std::{collections::HashMap, sync::Arc};
 
 async fn get_all_posts(
     State(state): State<Arc<AppState>>,
@@ -41,9 +41,13 @@ async fn get_all_posts(
     }
 
     let post_list: Vec<DBPost> = match state.post_repo.list_all_posts(&state.pool).await {
-        Ok(s) => s,
-        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+        Some(s) => s,
+        None => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     };
+
+    if post_list.is_empty() {
+        return (StatusCode::OK, Json(post_list)).into_response();
+    }
 
     let chunked_post_list: Vec<&[DBPost]> = post_list.chunks(page).collect();
 
@@ -77,14 +81,11 @@ async fn create_post(
     Extension(ext): Extension<Arc<DBUser>>,
     TypedMultipart(input): TypedMultipart<CreatePostDTO>,
 ) -> impl IntoResponse {
+    let post_id: u128 = state.snowflake.lock().await.next_id().await.id;
+
     let post: DBPost = match state
         .post_repo
-        .create_post(
-            &state.pool,
-            state.snowflake.lock().await.next_id().await.id,
-            ext.id,
-            &input.content,
-        )
+        .create_post(&state.pool, post_id, ext.id, &input.content)
         .await
     {
         Ok(s) => s,
@@ -95,10 +96,7 @@ async fn create_post(
         return (StatusCode::OK, Json(post)).into_response();
     }
 
-    for field in &input.attachments {
-        if input.attachments.len() > 10 {
-            break;
-        }
+    for field in input.attachments {
         let content_type: &str = file_type::FileType::from_bytes(&field.contents).media_types()[0];
         let file_id: u128 = state.snowflake.lock().await.next_id().await.id;
 
@@ -126,13 +124,24 @@ async fn create_post(
             }
             Err(_) => {}
         }
+
+        let _ = state
+            .post_repo
+            .link_post_attachment(&state.pool, post_id, file_id)
+            .await;
     }
 
     (StatusCode::OK, Json(post)).into_response()
 }
 
-async fn get_post_attachments(State(state): State<Arc<AppState>>) -> impl IntoResponse {
-    //state.jwt_utils
+async fn get_post_attachments(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<u128>,
+) -> impl IntoResponse {
+    match state.post_repo.get_post_attachments(&state.pool, id).await {
+        None => (StatusCode::OK, Json(Vec::<BigDecimal>::new())).into_response(),
+        Some(s) => (StatusCode::OK, Json(s)).into_response(),
+    }
 }
 
 pub fn routes() -> Router<Arc<AppState>> {
@@ -140,7 +149,7 @@ pub fn routes() -> Router<Arc<AppState>> {
         .without_v07_checks()
         .route("/", get(get_all_posts).post(create_post))
         .route("/{id}", get(get_post_by_id))
-        .route("/{id}/attachments", get(get_post_attachments))
+        .route("/{id}/attachment", get(get_post_attachments))
 }
 
 #[derive(Debug, Serialize)]
@@ -153,6 +162,5 @@ pub struct GetAllPostResponse {
 #[derive(Debug, TryFromMultipart)]
 pub struct CreatePostDTO {
     content: String,
-    #[form_data(limit = "2GiB")]
     attachments: Vec<FieldData<Bytes>>,
 }

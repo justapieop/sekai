@@ -10,6 +10,7 @@ pub struct Config {
     pub s3_access_key_id: String,
     pub s3_secret_access_key: String,
     pub s3_region: String,
+    pub s3_bucket_name: String,
     pub authgear_webhook_secret: String,
 }
 
@@ -34,6 +35,7 @@ impl Config {
             s3_region: env::var("S3_REGION").unwrap_or(String::from(DEFAULT_S3_REGION)),
             authgear_webhook_secret: env::var("AUTHGEAR_WEBHOOK_SECRETS")
                 .expect("AUTHGEAR_WEBHOOK_SECRETS must be set"),
+            s3_bucket_name: env::var("S3_BUCKET_NAME").expect("S3_BUCKET_NAME must be set"),
         }
     }
 }
