@@ -19,6 +19,7 @@ use tower_http::{
 };
 use tracing::info;
 
+use crate::utils::signature::Signature;
 use crate::{
     config::Config,
     repo::{
@@ -60,6 +61,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .await
         .expect("DATABASE_URL must be connected");
 
+    info!("Verifying webhook secret");
+    let signature_utils: Arc<Mutex<Signature>> =
+        Arc::from(Mutex::from(Signature::new(&config.authgear_webhook_secret)));
+
     info!("Performing migration if needed");
     migrate!().run(&pool).await.unwrap_or_default();
 
@@ -82,6 +87,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         pin_repo,
         pin_type_repo,
         challenge_repo,
+        signature_utils,
     ));
 
     info!("Initializing axum");

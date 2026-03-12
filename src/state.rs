@@ -3,6 +3,7 @@ use std::sync::Arc;
 use sqlx::PgPool;
 use tokio::sync::Mutex;
 
+use crate::utils::signature::Signature;
 use crate::{
     repo::{
         challenge::ChallengeRepo, file::FileRepo, pin::PinRepo, pin_types::PinTypeRepo,
@@ -23,6 +24,7 @@ pub struct AppState {
     pub pin_repo: Arc<PinRepo>,
     pub pin_type_repo: Arc<PinTypeRepo>,
     pub challenge_repo: Arc<ChallengeRepo>,
+    pub signature: Arc<Mutex<Signature>>,
 }
 
 impl AppState {
@@ -37,6 +39,7 @@ impl AppState {
         pin_repo: Arc<PinRepo>,
         pin_type_repo: Arc<PinTypeRepo>,
         challenge_repo: Arc<ChallengeRepo>,
+        signature: Arc<Mutex<Signature>>,
     ) -> Self {
         Self {
             snowflake,
@@ -49,6 +52,7 @@ impl AppState {
             pin_repo,
             pin_type_repo,
             challenge_repo,
+            signature,
         }
     }
 }
