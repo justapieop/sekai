@@ -6,14 +6,12 @@ use axum::routing::post;
 use axum::{Json, Router};
 use serde::Deserialize;
 use std::sync::Arc;
-use tracing::info;
 use uuid::Uuid;
 
 async fn create_user(
     State(state): State<Arc<AppState>>,
     Json(input): Json<WebhookRequest>,
 ) -> impl IntoResponse {
-    info!("{}", input.r#type);
     match state
         .user_repo
         .create_profile(

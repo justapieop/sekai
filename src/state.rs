@@ -1,4 +1,3 @@
-use moka::future::Cache;
 use sqlx::PgPool;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -25,7 +24,6 @@ pub struct AppState {
     pub pin_type_repo: Arc<PinTypeRepo>,
     pub challenge_repo: Arc<ChallengeRepo>,
     pub signature: Arc<Signature>,
-    pub webhook_cache: Arc<Cache<String, bool>>,
 }
 
 impl AppState {
@@ -41,7 +39,6 @@ impl AppState {
         pin_type_repo: Arc<PinTypeRepo>,
         challenge_repo: Arc<ChallengeRepo>,
         signature: Arc<Signature>,
-        webhook_cache: Arc<Cache<String, bool>>,
     ) -> Self {
         Self {
             snowflake,
@@ -55,7 +52,6 @@ impl AppState {
             pin_type_repo,
             challenge_repo,
             signature,
-            webhook_cache,
         }
     }
 }

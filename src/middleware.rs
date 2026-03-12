@@ -2,10 +2,6 @@ use std::{str::FromStr, sync::Arc};
 
 use crate::{repo::user::DBUser, AppState};
 
-use tracing::{error, info};
-
-use axum::body::to_bytes;
-use axum::http::HeaderValue;
 use axum::response::IntoResponse;
 use axum::{
     body::Body,
@@ -16,7 +12,6 @@ use axum::{
     Extension,
 };
 use bytes::Bytes;
-use serde::Deserialize;
 use uuid::Uuid;
 
 pub async fn verify_access_token(
@@ -43,10 +38,7 @@ pub async fn verify_access_token(
 
     let auth_header_value_str = match auth_header.to_str() {
         Ok(s) => s,
-        Err(_) => {
-            error!("Invalid Authorization header");
-            return res;
-        }
+        Err(_) => return res,
     };
 
     if auth_header_value_str.is_empty() || !auth_header_value_str.starts_with("Bearer ") {
@@ -129,30 +121,10 @@ pub async fn check_signature(
         return StatusCode::UNAUTHORIZED.into_response();
     }
 
-    let webhook_payload: WebhookIdPayload = match serde_json::from_slice(&body_bytes) {
-        Ok(payload) => payload,
-        Err(_) => return StatusCode::BAD_REQUEST.into_response(),
-    };
-
-    let event_id = webhook_payload.id;
-
-    if state.webhook_cache.contains_key(&event_id) {
-        return StatusCode::OK.into_response();
-    }
-
     let new_body = Body::from(body_bytes);
     let new_req = Request::from_parts(parts, new_body);
 
     let response = next.run(new_req).await;
 
-    if response.status().is_success() {
-        state.webhook_cache.insert(event_id, true).await;
-    }
-
     response
-}
-
-#[derive(Deserialize)]
-struct WebhookIdPayload {
-    id: String,
 }

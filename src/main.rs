@@ -75,12 +75,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let pin_repo: Arc<PinRepo> = Arc::new(PinRepo::new());
     let pin_type_repo: Arc<PinTypeRepo> = Arc::new(PinTypeRepo::new());
     let challenge_repo: Arc<ChallengeRepo> = Arc::new(ChallengeRepo::new());
-    let webhook_cache: Arc<Cache<String, bool>> = Arc::new(
-        Cache::builder()
-            .max_capacity(1000)
-            .time_to_live(Duration::from_hours(24))
-            .build(),
-    );
 
     info!("Creating state");
     let state: Arc<AppState> = Arc::new(AppState::new(
@@ -95,7 +89,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         pin_type_repo,
         challenge_repo,
         signature_utils,
-        webhook_cache,
     ));
 
     info!("Initializing axum");
