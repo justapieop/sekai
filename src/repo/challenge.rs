@@ -4,8 +4,7 @@ use bigdecimal::{BigDecimal, FromPrimitive};
 use chrono::{DateTime, Utc};
 use moka::future::Cache;
 use serde::{Deserialize, Serialize};
-use sqlx::{FromRow, PgPool};
-use tracing::error;
+use sqlx::{FromRow, Postgres, Transaction};
 use uuid::Uuid;
 
 const CACHE_KEY: &str = "CHALLENGE_CACHE";
@@ -67,7 +66,10 @@ impl ChallengeRepo {
         }
     }
 
-    pub async fn list_challenge(&self, pool: &PgPool) -> Result<Vec<DBChallenge>, Box<dyn Error>> {
+    pub async fn list_challenge(
+        &self,
+        pool: &mut Transaction<'_, Postgres>,
+    ) -> Result<Vec<DBChallenge>, Box<dyn Error>> {
         if let Some(cached_challenge_list) = self.cache.get(CACHE_KEY).await {
             return Ok(cached_challenge_list);
         }
@@ -76,7 +78,7 @@ impl ChallengeRepo {
             DBChallenge,
             r#"SELECT * FROM challenges WHERE CURRENT_TIMESTAMP < (ends_at + INTERVAL '3 days') ORDER BY created_at;"#
         )
-        .fetch_all(pool)
+        .fetch_all(&mut **pool)
         .await
         {
             Ok(s) => s,
@@ -90,7 +92,11 @@ impl ChallengeRepo {
         Ok(challenges.clone())
     }
 
-    pub async fn get_challenge(&self, pool: &PgPool, id: u128) -> Option<DBChallenge> {
+    pub async fn get_challenge(
+        &self,
+        pool: &mut Transaction<'_, Postgres>,
+        id: u128,
+    ) -> Option<DBChallenge> {
         if let Some(cached_challenge_list) = self.cache.get(CACHE_KEY).await {
             if let Some(challenge) = cached_challenge_list
                 .iter()
@@ -105,14 +111,14 @@ impl ChallengeRepo {
             r#"SELECT * FROM challenges WHERE id = $1;"#,
             BigDecimal::from_u128(id).unwrap_or_default()
         )
-        .fetch_optional(pool)
+        .fetch_optional(&mut **pool)
         .await
         .unwrap_or_else(|_| None)
     }
 
     pub async fn enroll_challenge(
         &self,
-        pool: &PgPool,
+        pool: &mut Transaction<'_, Postgres>,
         id: u128,
         user_id: Uuid,
     ) -> Result<(), Box<dyn Error>> {
@@ -121,7 +127,7 @@ impl ChallengeRepo {
             user_id,
             BigDecimal::from_u128(id).unwrap_or_default()
         )
-        .fetch_optional(pool)
+        .fetch_optional(&mut **pool)
         .await
         {
             Ok(s) => s,
@@ -131,12 +137,16 @@ impl ChallengeRepo {
         Ok(())
     }
 
-    pub async fn delete_challenge(&self, pool: &PgPool, id: u128) -> Result<(), Box<dyn Error>> {
+    pub async fn delete_challenge(
+        &self,
+        pool: &mut Transaction<'_, Postgres>,
+        id: u128,
+    ) -> Result<(), Box<dyn Error>> {
         match sqlx::query!(
             r#"DELETE FROM challenges WHERE id = $1"#,
             BigDecimal::from_u128(id).unwrap_or_default()
         )
-        .fetch_optional(pool)
+        .fetch_optional(&mut **pool)
         .await
         {
             Ok(_) => {
@@ -149,7 +159,7 @@ impl ChallengeRepo {
 
     pub async fn create_challenge(
         &self,
-        pool: &PgPool,
+        pool: &mut Transaction<'_, Postgres>,
         id: u128,
         title: &str,
         description: &str,
@@ -174,7 +184,7 @@ impl ChallengeRepo {
                     starts_at,
                     user_id,
                     BigDecimal::from_u128(cover_id).unwrap_or_default(),
-                ).fetch_one(pool).await {
+                ).fetch_one(&mut **pool).await {
             Ok(s) => s,
             Err(e) => return Err(e.into()),
         });
@@ -193,7 +203,7 @@ impl ChallengeRepo {
 
     pub async fn get_user_challenge(
         &self,
-        pool: &PgPool,
+        pool: &mut Transaction<'_, Postgres>,
         user_id: Uuid,
     ) -> Result<DBUserChallenge, Box<dyn Error>> {
         match sqlx::query_as!(
@@ -201,7 +211,7 @@ impl ChallengeRepo {
             r#"SELECT * FROM user_challenges uc WHERE user_id = $1 AND (SELECT ends_at FROM challenges WHERE id = uc.challenge_id) > CURRENT_TIMESTAMP ORDER BY joined_at DESC LIMIT 1;"#,
             user_id
         )
-        .fetch_one(pool)
+        .fetch_one(&mut **pool)
         .await
         {
             Ok(s) => Ok(s),
@@ -211,7 +221,7 @@ impl ChallengeRepo {
 
     pub async fn upload_challenge(
         &self,
-        pool: &PgPool,
+        pool: &mut Transaction<'_, Postgres>,
         id: u128,
         user_id: Uuid,
         file_id: u128,
@@ -220,7 +230,7 @@ impl ChallengeRepo {
             user_id,
             BigDecimal::from_u128(id).unwrap_or_default(),
             BigDecimal::from_u128(file_id).unwrap_or_default()
-        ).fetch_one(pool).await {
+        ).fetch_one(&mut **pool).await {
             Ok(s) => s,
             Err(e) => return Err(e.into()),
         });
@@ -235,7 +245,7 @@ impl ChallengeRepo {
 
     pub async fn get_user_uploads(
         &self,
-        pool: &PgPool,
+        pool: &mut Transaction<'_, Postgres>,
         user_id: Uuid,
         challenge_id: u128,
     ) -> Option<Vec<DBUserChallengeUploads>> {
@@ -249,7 +259,7 @@ impl ChallengeRepo {
             user_id,
             BigDecimal::from_u128(challenge_id).unwrap_or_default(),
         )
-        .fetch_all(pool)
+        .fetch_all(&mut **pool)
         .await
         {
             Ok(s) => s,
@@ -265,7 +275,7 @@ impl ChallengeRepo {
 
     pub async fn finish_challenge(
         &self,
-        pool: &PgPool,
+        pool: &mut Transaction<'_, Postgres>,
         user_id: Uuid,
         challenge_id: u128,
     ) -> Result<(), Box<dyn Error>> {
@@ -273,14 +283,14 @@ impl ChallengeRepo {
             r#"UPDATE user_challenges SET finished = true, finished_at = CURRENT_TIMESTAMP WHERE user_id = $1 AND challenge_id = $2;"#,
             user_id,
             BigDecimal::from_u128(challenge_id).unwrap_or_default(),
-        ).fetch_optional(pool).await {
+        ).fetch_optional(&mut **pool).await {
             Ok(_) => Ok(()),
             Err(e) => Err(e.into())
         }
     }
     pub async fn withdraw(
         &self,
-        pool: &PgPool,
+        pool: &mut Transaction<'_, Postgres>,
         user_id: Uuid,
         challenge_id: u128,
     ) -> Result<Vec<DBDeletedAttachmentList>, Box<dyn Error>> {
@@ -290,7 +300,7 @@ impl ChallengeRepo {
             user_id,
             BigDecimal::from_u128(challenge_id).unwrap_or_default()
         )
-        .fetch_all(pool)
+        .fetch_all(&mut **pool)
         .await
         {
             Ok(s) => Ok(s),

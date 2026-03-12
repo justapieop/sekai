@@ -1,17 +1,23 @@
 use std::sync::Arc;
 
-use axum::{Json, Router, extract::State, response::IntoResponse, routing::get};
+use crate::{repo::pin::DBPin, routes::pin_type, state::AppState};
+use axum::{extract::State, response::IntoResponse, routing::get, Json, Router};
 use reqwest::StatusCode;
 
-use crate::{repo::pin::DBPin, routes::pin_type, state::AppState};
-
 async fn get_all_pins(State(state): State<Arc<AppState>>) -> impl IntoResponse {
-    let pins: Vec<DBPin> = match state.pin_repo.get_all_pin(&state.pool).await {
+    let mut tx = match state.pool.begin().await {
+        Ok(tx) => tx,
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    };
+    let pins: Vec<DBPin> = match state.pin_repo.get_all_pin(&mut tx).await {
         Ok(s) => s,
         Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     };
 
-    (StatusCode::OK, Json(pins)).into_response()
+    match tx.commit().await {
+        Ok(_) => (StatusCode::OK, Json(pins)).into_response(),
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    }
 }
 
 pub fn routes() -> Router<Arc<AppState>> {

@@ -3,7 +3,7 @@ use std::{error::Error, time::Duration};
 use bigdecimal::{BigDecimal, FromPrimitive};
 use moka::future::Cache;
 use serde::{Deserialize, Serialize};
-use sqlx::{FromRow, PgPool};
+use sqlx::{FromRow, Postgres, Transaction};
 
 const CACHE_KEY: &str = "PIN_TYPE_CACHE";
 
@@ -28,14 +28,17 @@ impl PinTypeRepo {
         }
     }
 
-    pub async fn get_all_pin_types(&self, pool: &PgPool) -> Result<Vec<DBPinType>, Box<dyn Error>> {
+    pub async fn get_all_pin_types(
+        &self,
+        pool: &mut Transaction<'_, Postgres>,
+    ) -> Result<Vec<DBPinType>, Box<dyn Error>> {
         if let Some(cached_pin_types) = self.cache.get(CACHE_KEY).await {
             return Ok(cached_pin_types);
         }
 
         let pin_types: &Vec<DBPinType> =
             &(match sqlx::query_as!(DBPinType, r#"SELECT * FROM pin_types;"#)
-                .fetch_all(pool)
+                .fetch_all(&mut **pool)
                 .await
             {
                 Ok(s) => s,
@@ -51,7 +54,7 @@ impl PinTypeRepo {
 
     pub async fn create_pin_type(
         &self,
-        pool: &PgPool,
+        pool: &mut Transaction<'_, Postgres>,
         id: u128,
         name: &str,
         icon: Vec<u8>,
@@ -63,7 +66,7 @@ impl PinTypeRepo {
             name,
             &icon
         )
-        .fetch_one(pool)
+        .fetch_one(&mut **pool)
         .await
         {
             Ok(s) => s,
@@ -73,12 +76,16 @@ impl PinTypeRepo {
         Ok(pin_type)
     }
 
-    pub async fn delete_pin_type(&self, pool: &PgPool, id: u128) -> Result<(), Box<dyn Error>> {
+    pub async fn delete_pin_type(
+        &self,
+        pool: &mut Transaction<'_, Postgres>,
+        id: u128,
+    ) -> Result<(), Box<dyn Error>> {
         match sqlx::query!(
             "DELETE FROM pin_types WHERE id = $1;",
             BigDecimal::from_u128(id).unwrap_or_default()
         )
-        .fetch_optional(pool)
+        .fetch_optional(&mut **pool)
         .await
         {
             Ok(_) => {}

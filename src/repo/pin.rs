@@ -4,7 +4,7 @@ use bigdecimal::{BigDecimal, FromPrimitive};
 use chrono::{DateTime, Utc};
 use moka::future::Cache;
 use serde::{Deserialize, Serialize};
-use sqlx::{FromRow, PgPool};
+use sqlx::{FromRow, Postgres, Transaction};
 
 const CACHE_KEY: &str = "PIN_CACHE";
 
@@ -38,13 +38,16 @@ impl PinRepo {
         }
     }
 
-    pub async fn get_all_pin(&self, pool: &PgPool) -> Result<Vec<DBPin>, Box<dyn Error>> {
+    pub async fn get_all_pin(
+        &self,
+        pool: &mut Transaction<'_, Postgres>,
+    ) -> Result<Vec<DBPin>, Box<dyn Error>> {
         if let Some(cached_pin_list) = self.cache.get(CACHE_KEY).await {
             return Ok(cached_pin_list);
         }
 
         let pins: &Vec<DBPin> = &(match sqlx::query_as!(DBPin, r#"SELECT * FROM pins;"#)
-            .fetch_all(pool)
+            .fetch_all(&mut **pool)
             .await
         {
             Ok(s) => s,
@@ -60,7 +63,7 @@ impl PinRepo {
 
     pub async fn create_pin(
         &self,
-        pool: &PgPool,
+        pool: &mut Transaction<'_, Postgres>,
         id: u128,
         name: &str,
         type_id: u128,
@@ -85,7 +88,7 @@ impl PinRepo {
                     terms,
                     &opening,
                     &closing
-                ).fetch_one(pool).await {
+                ).fetch_one(&mut **pool).await {
             Ok(s) => s,
             Err(e) => return Err(e.into()),
         });

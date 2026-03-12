@@ -1,5 +1,13 @@
 use std::sync::Arc;
 
+use crate::{
+    repo::{
+        challenge::{DBChallenge, DBDeletedAttachmentList},
+        file::DBFileMetadata,
+        user::DBUser,
+    },
+    state::AppState,
+};
 use axum::{
     extract::{Path, State}, response::IntoResponse, routing::get,
     Extension,
@@ -10,35 +18,39 @@ use axum_typed_multipart::{FieldData, TryFromMultipart, TypedMultipart};
 use bytes::Bytes;
 use reqwest::StatusCode;
 
-use crate::{
-    repo::{
-        challenge::{DBChallenge, DBDeletedAttachmentList},
-        file::DBFileMetadata,
-        user::DBUser,
-    },
-    state::AppState,
-};
-
 async fn list_challenge(State(state): State<Arc<AppState>>) -> impl IntoResponse {
-    let challenges: Vec<DBChallenge> = match state.challenge_repo.list_challenge(&state.pool).await
-    {
+    let mut tx = match state.pool.begin().await {
+        Ok(tx) => tx,
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    };
+    let challenges: Vec<DBChallenge> = match state.challenge_repo.list_challenge(&mut tx).await {
         Ok(s) => s,
         Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     };
 
-    (StatusCode::OK, Json(challenges)).into_response()
+    match tx.commit().await {
+        Ok(_) => (StatusCode::OK, Json(challenges)).into_response(),
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    }
 }
 
 async fn get_challenge(
     State(state): State<Arc<AppState>>,
     Path(id): Path<u128>,
 ) -> impl IntoResponse {
-    let challenge: DBChallenge = match state.challenge_repo.get_challenge(&state.pool, id).await {
+    let mut tx = match state.pool.begin().await {
+        Ok(tx) => tx,
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    };
+    let challenge: DBChallenge = match state.challenge_repo.get_challenge(&mut tx, id).await {
         Some(s) => s,
         None => return (StatusCode::NOT_FOUND, "Challenge not found").into_response(),
     };
 
-    (StatusCode::OK, Json(challenge)).into_response()
+    match tx.commit().await {
+        Ok(_) => (StatusCode::OK, Json(challenge)).into_response(),
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    }
 }
 
 async fn enroll_challenge(
@@ -46,13 +58,22 @@ async fn enroll_challenge(
     Extension(ext): Extension<Arc<DBUser>>,
     Path(id): Path<u128>,
 ) -> impl IntoResponse {
+    let mut tx = match state.pool.begin().await {
+        Ok(tx) => tx,
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    };
     match state
         .challenge_repo
-        .enroll_challenge(&state.pool, id, ext.id)
+        .enroll_challenge(&mut tx, id, ext.id)
         .await
     {
+        Ok(_) => {}
+        Err(_) => return StatusCode::BAD_REQUEST.into_response(),
+    };
+
+    match tx.commit().await {
         Ok(_) => StatusCode::OK.into_response(),
-        Err(_) => StatusCode::BAD_REQUEST.into_response(),
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     }
 }
 
@@ -62,7 +83,12 @@ async fn upload_for_challenge(
     Path(id): Path<u128>,
     TypedMultipart(input): TypedMultipart<DTOChallengeUpload>,
 ) -> impl IntoResponse {
-    match state.challenge_repo.get_challenge(&state.pool, id).await {
+    let mut tx = match state.pool.begin().await {
+        Ok(s) => s,
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    };
+
+    match state.challenge_repo.get_challenge(&mut tx, id).await {
         Some(s) => s,
         None => return (StatusCode::NOT_FOUND, "Challenge not found").into_response(),
     };
@@ -89,7 +115,7 @@ async fn upload_for_challenge(
         .file_repo
         .lock()
         .await
-        .create_file(&state.pool, file_id, ext.id)
+        .create_file(&mut tx, file_id, ext.id)
         .await
     {
         Ok(s) => s,
@@ -98,12 +124,13 @@ async fn upload_for_challenge(
 
     match state
         .challenge_repo
-        .upload_challenge(&state.pool, id, ext.id, file_id)
+        .upload_challenge(&mut tx, id, ext.id, file_id)
         .await
     {
         Ok(s) => s,
         Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     };
+    tx.commit().await.unwrap_or_default();
     (StatusCode::OK, Json(metadata)).into_response()
 }
 
@@ -112,8 +139,12 @@ async fn withdraw_challenge(
     Path(id): Path<u128>,
     Extension(ext): Extension<Arc<DBUser>>,
 ) -> impl IntoResponse {
+    let mut tx = match state.pool.begin().await {
+        Ok(tx) => tx,
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    };
     let file_ids: Vec<DBDeletedAttachmentList> =
-        match state.challenge_repo.withdraw(&state.pool, ext.id, id).await {
+        match state.challenge_repo.withdraw(&mut tx, ext.id, id).await {
             Ok(s) => s,
             Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
         };
@@ -129,7 +160,10 @@ async fn withdraw_challenge(
         };
     }
 
-    StatusCode::OK.into_response()
+    match tx.commit().await {
+        Ok(_) => StatusCode::OK.into_response(),
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    }
 }
 
 async fn finish_challenge(
@@ -137,11 +171,20 @@ async fn finish_challenge(
     Path(id): Path<u128>,
     Extension(ext): Extension<Arc<DBUser>>,
 ) -> impl IntoResponse {
+    let mut tx = match state.pool.begin().await {
+        Ok(tx) => tx,
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    };
     match state
         .challenge_repo
-        .finish_challenge(&state.pool, ext.id, id)
+        .finish_challenge(&mut tx, ext.id, id)
         .await
     {
+        Ok(_) => {}
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    }
+
+    match tx.commit().await {
         Ok(_) => StatusCode::OK.into_response(),
         Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     }

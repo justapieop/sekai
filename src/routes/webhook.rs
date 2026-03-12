@@ -12,10 +12,14 @@ async fn create_user(
     State(state): State<Arc<AppState>>,
     Json(input): Json<WebhookRequest>,
 ) -> impl IntoResponse {
+    let mut tx = match state.pool.begin().await {
+        Ok(tx) => tx,
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    };
     match state
         .user_repo
         .create_profile(
-            &state.pool,
+            &mut tx,
             input.payload.user.id,
             &input.payload.user.standard_attributes.email,
             &input.payload.user.standard_attributes.name,
@@ -23,8 +27,13 @@ async fn create_user(
         )
         .await
     {
+        Ok(_) => {}
+        Err(_) => return StatusCode::BAD_REQUEST.into_response(),
+    };
+
+    match tx.commit().await {
         Ok(_) => StatusCode::OK.into_response(),
-        Err(_) => StatusCode::BAD_REQUEST.into_response(),
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     }
 }
 

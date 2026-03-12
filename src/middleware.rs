@@ -60,10 +60,15 @@ pub async fn verify_access_token(
         }
     };
 
+    let mut tx = match state.pool.begin().await {
+        Ok(tx) => tx,
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    };
+
     let user: Arc<DBUser> = Arc::new(
         match state
             .user_repo
-            .get_user_by_id(&state.pool, Uuid::from_str(&uid).unwrap_or_default())
+            .get_user_by_id(&mut tx, Uuid::from_str(&uid).unwrap_or_default())
             .await
         {
             None => return res,
@@ -71,7 +76,10 @@ pub async fn verify_access_token(
         },
     );
 
-    req.extensions_mut().insert(user);
+    match tx.commit().await {
+        Ok(_) => req.extensions_mut().insert(user),
+        Err(_) => return res,
+    };
 
     next.run(req).await
 }

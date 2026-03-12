@@ -22,6 +22,10 @@ async fn get_all_user(
     State(state): State<Arc<AppState>>,
     Query(query): Query<HashMap<String, String>>,
 ) -> impl IntoResponse {
+    let mut tx = match state.pool.begin().await {
+        Ok(tx) => tx,
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    };
     let (limit, page): (usize, usize) = (
         if let Ok(s) = query.get("limit").map_or("0", |v| v).parse() {
             s
@@ -43,7 +47,7 @@ async fn get_all_user(
             .into_response();
     }
 
-    let user_list: Vec<DBUser> = match state.user_repo.get_all_user(&state.pool).await {
+    let user_list: Vec<DBUser> = match state.user_repo.get_all_user(&mut tx).await {
         Ok(s) => s,
         Err(_) => {
             return (StatusCode::INTERNAL_SERVER_ERROR, "Unknown error").into_response();
@@ -51,27 +55,39 @@ async fn get_all_user(
     };
 
     let chunked_user_list: Vec<&[DBUser]> = user_list.chunks(limit).collect();
-    (
-        StatusCode::OK,
-        Json(GetAllUserResponse {
-            page,
-            limit,
-            users: chunked_user_list[page - 1].to_vec(),
-        }),
-    )
-        .into_response()
+    match tx.commit().await {
+        Ok(_) => (
+            StatusCode::OK,
+            Json(GetAllUserResponse {
+                page,
+                limit,
+                users: chunked_user_list[page - 1].to_vec(),
+            }),
+        )
+            .into_response(),
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    }
 }
 
 async fn get_user_challenge(
     State(state): State<Arc<AppState>>,
     Extension(ext): Extension<Arc<DBUser>>,
 ) -> impl IntoResponse {
-    match state
+    let mut tx = match state.pool.begin().await {
+        Ok(tx) => tx,
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    };
+    let user_challenge: DBUserChallenge = match state
         .challenge_repo
-        .get_user_challenge(&state.pool, ext.id)
+        .get_user_challenge(&mut tx, ext.id)
         .await
     {
-        Ok(s) => (StatusCode::OK, Json(s)).into_response(),
+        Ok(s) => s,
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    };
+
+    match tx.commit().await {
+        Ok(_) => (StatusCode::OK, Json(user_challenge)).into_response(),
         Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     }
 }
@@ -80,9 +96,13 @@ async fn get_user_uploads(
     State(state): State<Arc<AppState>>,
     Extension(ext): Extension<Arc<DBUser>>,
 ) -> impl IntoResponse {
+    let mut tx = match state.pool.begin().await {
+        Ok(tx) => tx,
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    };
     let current_challenge: DBUserChallenge = match state
         .challenge_repo
-        .get_user_challenge(&state.pool, ext.id)
+        .get_user_challenge(&mut tx, ext.id)
         .await
     {
         Ok(s) => s,
@@ -92,7 +112,7 @@ async fn get_user_uploads(
     let uploads: Vec<DBUserChallengeUploads> = match state
         .challenge_repo
         .get_user_uploads(
-            &state.pool,
+            &mut tx,
             ext.id,
             current_challenge.challenge_id.to_u128().unwrap(),
         )
@@ -123,7 +143,10 @@ async fn get_user_uploads(
         };
     }
 
-    (StatusCode::OK, Json(challenge_uploads)).into_response()
+    match tx.commit().await {
+        Ok(_) => (StatusCode::OK, Json(challenge_uploads)).into_response(),
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    }
 }
 
 async fn update_user_bio(
@@ -131,6 +154,10 @@ async fn update_user_bio(
     Query(query): Query<HashMap<String, String>>,
     Extension(ext): Extension<Arc<DBUser>>,
 ) -> impl IntoResponse {
+    let mut tx = match state.pool.begin().await {
+        Ok(tx) => tx,
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    };
     let bio: String = match query.get("bio_value") {
         Some(s) => s.to_owned(),
         None => return StatusCode::BAD_REQUEST.into_response(),
@@ -143,9 +170,14 @@ async fn update_user_bio(
 
     match state
         .user_repo
-        .update_bio(&state.pool, ext.id, &decoded_bio)
+        .update_bio(&mut tx, ext.id, &decoded_bio)
         .await
     {
+        Ok(_) => {}
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    };
+
+    match tx.commit().await {
         Ok(_) => StatusCode::OK.into_response(),
         Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     }
@@ -162,9 +194,18 @@ async fn get_user_by_id(
     State(state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
 ) -> impl IntoResponse {
-    match state.user_repo.get_user_by_id(&state.pool, id).await {
-        None => StatusCode::NOT_FOUND.into_response(),
-        Some(s) => (StatusCode::OK, Json(s)).into_response(),
+    let mut tx = match state.pool.begin().await {
+        Ok(tx) => tx,
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    };
+    let user: DBUser = match state.user_repo.get_user_by_id(&mut tx, id).await {
+        None => return StatusCode::NOT_FOUND.into_response(),
+        Some(s) => s,
+    };
+
+    match tx.commit().await {
+        Ok(_) => (StatusCode::OK, Json(user)).into_response(),
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     }
 }
 

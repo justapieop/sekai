@@ -4,7 +4,7 @@ use bigdecimal::{BigDecimal, FromPrimitive};
 use chrono::{DateTime, Utc};
 use moka::future::Cache;
 use serde::{Deserialize, Serialize};
-use sqlx::{prelude::FromRow, PgPool};
+use sqlx::{prelude::FromRow, Postgres, Transaction};
 use uuid::Uuid;
 
 const CACHE_KEY: &str = "POST_CACHE";
@@ -40,7 +40,7 @@ impl PostRepo {
 
     pub async fn link_post_attachment(
         &self,
-        pool: &PgPool,
+        pool: &mut Transaction<'_, Postgres>,
         post_id: u128,
         attachment_id: u128,
     ) -> Result<(), Box<dyn Error>> {
@@ -49,7 +49,7 @@ impl PostRepo {
             BigDecimal::from_u128(post_id).unwrap_or_default(),
             BigDecimal::from_u128(attachment_id).unwrap_or_default()
         )
-        .fetch_optional(pool)
+        .fetch_optional(&mut **pool)
         .await
         {
             Ok(_) => Ok(()),
@@ -57,7 +57,11 @@ impl PostRepo {
         }
     }
 
-    pub async fn get_post_attachments(&self, pool: &PgPool, id: u128) -> Option<Vec<BigDecimal>> {
+    pub async fn get_post_attachments(
+        &self,
+        pool: &mut Transaction<'_, Postgres>,
+        id: u128,
+    ) -> Option<Vec<BigDecimal>> {
         if let Some(s) = self.attachment_cache.get(&id).await {
             return Some(s);
         }
@@ -66,7 +70,7 @@ impl PostRepo {
             r#"SELECT attachment_id FROM post_attachments WHERE post_id = $1;"#,
             BigDecimal::from_u128(id).unwrap_or_default()
         )
-        .fetch_all(pool)
+        .fetch_all(&mut **pool)
         .await
         {
             Ok(s) => s,
@@ -78,18 +82,21 @@ impl PostRepo {
         Some(ids.clone())
     }
 
-    pub async fn list_all_posts(&self, pool: &PgPool) -> Option<Vec<DBPost>> {
+    pub async fn list_all_posts(
+        &self,
+        pool: &mut Transaction<'_, Postgres>,
+    ) -> Option<Vec<DBPost>> {
         if let Some(cached_post_list) = self.cache.get(CACHE_KEY).await {
             return Some(cached_post_list);
         }
 
         let post_list: &Vec<DBPost> =
             &(match sqlx::query_as!(DBPost, r#"SELECT * FROM posts ORDER BY updated_at;"#)
-                .fetch_all(pool)
+                .fetch_all(&mut **pool)
                 .await
             {
                 Ok(s) => s,
-                Err(e) => return None,
+                Err(_) => return None,
             });
 
         self.cache
@@ -99,7 +106,11 @@ impl PostRepo {
         Some(post_list.clone())
     }
 
-    pub async fn get_post_by_id(&self, pool: &PgPool, id: u128) -> Option<DBPost> {
+    pub async fn get_post_by_id(
+        &self,
+        pool: &mut Transaction<'_, Postgres>,
+        id: u128,
+    ) -> Option<DBPost> {
         if let Some(cached_post_list) = self.cache.get(CACHE_KEY).await {
             let post: Option<DBPost> = match cached_post_list
                 .iter()
@@ -132,7 +143,7 @@ impl PostRepo {
 
     pub async fn create_post(
         &self,
-        pool: &PgPool,
+        pool: &mut Transaction<'_, Postgres>,
         id: u128,
         author_id: Uuid,
         content: &str,
@@ -144,7 +155,7 @@ impl PostRepo {
             author_id,
             content
         )
-        .fetch_one(pool)
+        .fetch_one(&mut **pool)
         .await
         {
             Ok(s) => s,

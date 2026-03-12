@@ -4,7 +4,7 @@ use bigdecimal::{BigDecimal, FromPrimitive};
 use chrono::{DateTime, Utc};
 use moka::future::Cache;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, prelude::FromRow};
+use sqlx::{prelude::FromRow, Postgres, Transaction};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -28,7 +28,11 @@ impl FileRepo {
         }
     }
 
-    pub async fn get_file_by_id(&self, pool: &PgPool, id: u128) -> Option<DBFileMetadata> {
+    pub async fn get_file_by_id(
+        &self,
+        pool: &mut Transaction<'_, Postgres>,
+        id: u128,
+    ) -> Option<DBFileMetadata> {
         if let Some(file) = self.cache.get(&id).await {
             return Some(file);
         }
@@ -38,7 +42,7 @@ impl FileRepo {
             r#"SELECT * FROM file_metadata WHERE id = $1;"#,
             BigDecimal::from_u128(id).unwrap_or_default()
         )
-        .fetch_one(pool)
+        .fetch_one(&mut **pool)
         .await
         {
             Ok(s) => s,
@@ -52,7 +56,7 @@ impl FileRepo {
 
     pub async fn create_file(
         &mut self,
-        pool: &PgPool,
+        pool: &mut Transaction<'_, Postgres>,
         id: u128,
         user_id: Uuid,
     ) -> Result<DBFileMetadata, Box<dyn Error + Send + Sync>> {
@@ -62,7 +66,7 @@ impl FileRepo {
             BigDecimal::from_u128(id).unwrap_or_default(),
             user_id
         )
-        .fetch_one(pool)
+        .fetch_one(&mut **pool)
         .await
         {
             Ok(s) => s,

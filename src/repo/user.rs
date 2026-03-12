@@ -3,7 +3,7 @@ use std::{error::Error, time::Duration};
 use chrono::{DateTime, Utc};
 use moka::future::Cache;
 use serde::{Deserialize, Serialize};
-use sqlx::{prelude::FromRow, PgPool};
+use sqlx::{prelude::FromRow, Postgres, Transaction};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -35,12 +35,15 @@ impl UserRepo {
         }
     }
 
-    pub async fn get_all_user(&self, pool: &PgPool) -> Result<Vec<DBUser>, Box<dyn Error>> {
+    pub async fn get_all_user(
+        &self,
+        pool: &mut Transaction<'_, Postgres>,
+    ) -> Result<Vec<DBUser>, Box<dyn Error>> {
         if let Some(cached_user_list) = self.cache.get(CACHE_KEY).await {
             return Ok(cached_user_list);
         }
         let user_list: &Vec<DBUser> = &(match sqlx::query_as!(DBUser, r#"SELECT * FROM users;"#)
-            .fetch_all(pool)
+            .fetch_all(&mut **pool)
             .await
         {
             Ok(s) => s,
@@ -54,7 +57,11 @@ impl UserRepo {
         Ok(user_list.clone())
     }
 
-    pub async fn get_user_by_id(&self, pool: &PgPool, id: Uuid) -> Option<DBUser> {
+    pub async fn get_user_by_id(
+        &self,
+        pool: &mut Transaction<'_, Postgres>,
+        id: Uuid,
+    ) -> Option<DBUser> {
         if let Some(cached_user_list) = self.cache.get(CACHE_KEY).await {
             let user: Option<DBUser> = match cached_user_list.iter().find(|u| u.id == id) {
                 Some(s) => Some(s.to_owned()),
@@ -67,14 +74,14 @@ impl UserRepo {
         }
 
         sqlx::query_as!(DBUser, r#"SELECT * FROM users WHERE id = $1"#, id)
-            .fetch_optional(pool)
+            .fetch_optional(&mut **pool)
             .await
             .unwrap_or_else(|_| None)
     }
 
     pub async fn create_profile(
         &self,
-        pool: &PgPool,
+        pool: &mut Transaction<'_, Postgres>,
         id: Uuid,
         email: &str,
         name: &str,
@@ -94,7 +101,7 @@ impl UserRepo {
             name,
             avatar_url
         )
-        .fetch_one(pool)
+        .fetch_one(&mut **pool)
         .await
         {
             Ok(s) => s,
@@ -115,12 +122,12 @@ impl UserRepo {
 
     pub async fn update_bio(
         &self,
-        pool: &PgPool,
+        pool: &mut Transaction<'_, Postgres>,
         user_id: Uuid,
         bio: &str,
     ) -> Result<(), Box<dyn Error>> {
         match sqlx::query!("UPDATE users SET bio = $1 WHERE id = $2;", bio, user_id)
-            .fetch_optional(pool)
+            .fetch_optional(&mut **pool)
             .await
         {
             Ok(_) => Ok(()),

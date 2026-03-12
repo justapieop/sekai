@@ -1,5 +1,6 @@
 mod admin;
 mod challenge;
+mod comment;
 mod file;
 mod pin;
 mod pin_type;
