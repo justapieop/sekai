@@ -5,12 +5,13 @@ mod pin;
 mod pin_type;
 mod post;
 mod user;
+mod webhook;
 
 use std::sync::Arc;
 
 use axum::{
-    Router,
     middleware::{from_fn, from_fn_with_state},
+    Router,
 };
 use tower::ServiceBuilder;
 
@@ -53,4 +54,11 @@ pub fn routes(state: Arc<AppState>) -> Router<Arc<AppState>> {
             )),
         )
         .nest("/file", file::routes())
+        .nest(
+            "/webhook",
+            webhook::routes().layer(from_fn_with_state(
+                state.clone(),
+                middleware::check_signature,
+            )),
+        )
 }

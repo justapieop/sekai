@@ -1,17 +1,21 @@
 use std::{str::FromStr, sync::Arc};
 
-use crate::{AppState, repo::user::DBUser};
+use crate::{repo::user::DBUser, AppState};
 
-use tracing::{debug, error};
+use tracing::error;
 
+use axum::body::to_bytes;
+use axum::http::HeaderValue;
+use axum::response::IntoResponse;
 use axum::{
-    Extension,
     body::Body,
     extract::{Request, State},
     http::StatusCode,
     middleware::Next,
     response::Response,
+    Extension,
 };
+use bytes::Bytes;
 use uuid::Uuid;
 
 pub async fn verify_access_token(
@@ -66,22 +70,11 @@ pub async fn verify_access_token(
     let user: Arc<DBUser> = Arc::new(
         match state
             .user_repo
-            .create_profile(
-                &state.pool,
-                match Uuid::from_str(&uid) {
-                    Ok(s) => s,
-                    Err(_) => {
-                        return res;
-                    }
-                },
-            )
+            .get_user_by_id(&state.pool, Uuid::from_str(&uid).unwrap_or_default())
             .await
         {
-            Ok(s) => s,
-            Err(e) => {
-                debug!("{}", e);
-                return res;
-            }
+            None => return res,
+            Some(s) => s,
         },
     );
 
@@ -102,4 +95,35 @@ pub async fn restrict_admin(
             .unwrap_or_default();
     }
     next.run(req).await
+}
+
+pub async fn check_signature(
+    State(state): State<Arc<AppState>>,
+    req: Request,
+    next: Next,
+) -> Response {
+    let (parts, body) = req.into_parts();
+    let signature: &HeaderValue = match parts.headers.get("x-authgear-body-signature") {
+        None => return StatusCode::BAD_REQUEST.into_response(),
+        Some(s) => s,
+    };
+    let body_bytes: Bytes = match to_bytes(body, usize::MAX).await {
+        Ok(s) => s,
+        Err(_) => return StatusCode::BAD_REQUEST.into_response(),
+    };
+
+    if !state
+        .signature
+        .lock()
+        .await
+        .verify(body_bytes.clone().iter().as_slice(), signature.as_bytes())
+    {
+        return StatusCode::BAD_REQUEST.into_response();
+    }
+
+    let new_body: Body = Body::from(body_bytes.clone());
+
+    let new_req: Request = Request::from_parts(parts, new_body);
+
+    next.run(new_req).await
 }
