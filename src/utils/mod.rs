@@ -1,3 +1,4 @@
+pub mod ai;
 pub mod jwt_utils;
 pub mod signature;
 pub mod snowflake;

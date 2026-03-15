@@ -7,14 +7,12 @@ use axum::{
     Json,
     Router,
 };
-use axum_typed_multipart::{TryFromMultipart, TypedMultipart};
-use bytes::Bytes;
 use reqwest::StatusCode;
 use serde::Deserialize;
 
 async fn create_pin_type(
     State(state): State<Arc<AppState>>,
-    TypedMultipart(input): TypedMultipart<DTOCreatePinType>,
+    Json(input): Json<DTOCreatePinType>,
 ) -> impl IntoResponse {
     let mut tx = match state.pool.begin().await {
         Ok(tx) => tx,
@@ -26,7 +24,7 @@ async fn create_pin_type(
             &mut tx,
             state.snowflake.lock().await.next_id().await.id,
             &input.name,
-            input.icon.to_vec(),
+            &input.icon,
         )
         .await
     {
@@ -62,6 +60,7 @@ async fn create_pin(
             &input.terms,
             input.opening,
             input.closing,
+            &input.instruction,
         )
         .await
     {
@@ -82,10 +81,10 @@ pub fn routes() -> Router<Arc<AppState>> {
         .route("/{id}", post(create_pin))
 }
 
-#[derive(Debug, TryFromMultipart)]
+#[derive(Debug, Deserialize)]
 pub struct DTOCreatePinType {
     name: String,
-    icon: Bytes,
+    icon: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -98,4 +97,5 @@ pub struct DTOCreatePin {
     terms: String,
     opening: Vec<i32>,
     closing: Vec<i32>,
+    instruction: String,
 }

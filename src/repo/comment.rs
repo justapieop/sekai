@@ -1,4 +1,5 @@
 use bigdecimal::{BigDecimal, FromPrimitive};
+use chrono::{DateTime, Utc};
 use moka::future::Cache;
 use serde::Serialize;
 use sqlx::{FromRow, Postgres, Transaction};
@@ -14,15 +15,22 @@ pub struct DBComment {
     reply_to: Option<BigDecimal>,
     content: String,
     attachment_id: Option<BigDecimal>,
+    created_at: DateTime<Utc>,
+    updated_at: DateTime<Utc>,
 }
 pub struct CommentRepo {
     cache: Cache<u128, Vec<DBComment>>,
+    replies_cache: Cache<u128, Vec<DBComment>>,
 }
 
 impl CommentRepo {
     pub fn new() -> Self {
         Self {
             cache: Cache::builder()
+                .max_capacity(1000)
+                .time_to_live(Duration::from_hours(24))
+                .build(),
+            replies_cache: Cache::builder()
                 .max_capacity(1000)
                 .time_to_live(Duration::from_hours(24))
                 .build(),
@@ -40,7 +48,7 @@ impl CommentRepo {
 
         let comment_list: &Vec<DBComment> = &(match sqlx::query_as!(
             DBComment,
-            r#"SELECT * FROM post_comments WHERE post_id = $1;"#,
+            r#"SELECT * FROM post_comments WHERE post_id = $1 AND reply_to IS NULL;"#,
             BigDecimal::from_u128(post_id).unwrap_or_default(),
         )
         .fetch_all(&mut **pool)
@@ -53,6 +61,32 @@ impl CommentRepo {
         self.cache.insert(post_id, comment_list.clone()).await;
 
         Some(comment_list.clone())
+    }
+
+    pub async fn get_replies(
+        &self,
+        pool: &mut Transaction<'_, Postgres>,
+        comment_id: u128,
+    ) -> Option<Vec<DBComment>> {
+        if let Some(cached_replies) = self.replies_cache.get(&comment_id).await {
+            return Some(cached_replies);
+        }
+
+        let replies: &Vec<DBComment> = &(match sqlx::query_as!(
+            DBComment,
+            r#"SELECT * FROM post_comments WHERE reply_to = $1;"#,
+            BigDecimal::from_u128(comment_id).unwrap_or_default(),
+        )
+        .fetch_all(&mut **pool)
+        .await
+        {
+            Ok(s) => s,
+            Err(_) => return None,
+        });
+
+        self.cache.insert(comment_id, replies.clone()).await;
+
+        Some(replies.clone())
     }
 
     pub async fn post_comment(

@@ -12,6 +12,7 @@ pub struct Config {
     pub s3_region: String,
     pub s3_bucket_name: String,
     pub authgear_webhook_secret: String,
+    pub gemini_api_key: String,
 }
 
 const DEFAULT_HOST: &str = "127.0.0.1:3000";
@@ -36,6 +37,7 @@ impl Config {
             authgear_webhook_secret: env::var("AUTHGEAR_WEBHOOK_SECRETS")
                 .expect("AUTHGEAR_WEBHOOK_SECRETS must be set"),
             s3_bucket_name: env::var("S3_BUCKET_NAME").expect("S3_BUCKET_NAME must be set"),
+            gemini_api_key: env::var("GEMINI_API_KEY").expect("GEMINI_API_KEY must be set"),
         }
     }
 }

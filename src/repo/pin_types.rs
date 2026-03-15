@@ -11,7 +11,7 @@ const CACHE_KEY: &str = "PIN_TYPE_CACHE";
 pub struct DBPinType {
     pub id: BigDecimal,
     pub name: String,
-    pub icon: Vec<u8>,
+    pub icon: String,
 }
 
 pub struct PinTypeRepo {
@@ -57,14 +57,14 @@ impl PinTypeRepo {
         pool: &mut Transaction<'_, Postgres>,
         id: u128,
         name: &str,
-        icon: Vec<u8>,
+        icon: &str,
     ) -> Result<DBPinType, Box<dyn Error>> {
         let pin_type: DBPinType = match sqlx::query_as!(
             DBPinType,
             r#"INSERT INTO pin_types VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING *;"#,
             BigDecimal::from_u128(id).unwrap_or_default(),
             name,
-            &icon
+            icon
         )
         .fetch_one(&mut **pool)
         .await

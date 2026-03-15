@@ -1,4 +1,5 @@
 mod admin;
+mod ai;
 mod challenge;
 mod comment;
 mod file;
@@ -60,6 +61,13 @@ pub fn routes(state: Arc<AppState>) -> Router<Arc<AppState>> {
             webhook::routes().layer(from_fn_with_state(
                 state.clone(),
                 middleware::check_signature,
+            )),
+        )
+        .nest(
+            "/ai",
+            ai::routes().layer(from_fn_with_state(
+                state.clone(),
+                middleware::verify_access_token,
             )),
         )
 }

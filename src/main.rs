@@ -5,6 +5,7 @@ mod routes;
 mod state;
 mod utils;
 
+use axum::extract::DefaultBodyLimit;
 use axum::Router;
 use sqlx::{migrate, postgres::PgPoolOptions, PgPool};
 use std::{error::Error, sync::Arc};
@@ -18,6 +19,8 @@ use tower_http::{
 };
 use tracing::info;
 
+use crate::repo::comment::CommentRepo;
+use crate::utils::ai::AiUtils;
 use crate::utils::signature::Signature;
 use crate::{
     config::Config,
@@ -65,6 +68,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let signature_utils: Arc<Signature> =
         Arc::from(Signature::new(&config.authgear_webhook_secret));
 
+    info!("Checking Gemini API key");
+    let ai_utils: Arc<AiUtils> = Arc::new(AiUtils::new(&config.gemini_api_key));
+
     info!("Performing migration if needed");
     migrate!().run(&pool).await.unwrap_or_default();
 
@@ -74,6 +80,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let pin_repo: Arc<PinRepo> = Arc::new(PinRepo::new());
     let pin_type_repo: Arc<PinTypeRepo> = Arc::new(PinTypeRepo::new());
     let challenge_repo: Arc<ChallengeRepo> = Arc::new(ChallengeRepo::new());
+    let comment_repo: Arc<CommentRepo> = Arc::new(CommentRepo::new());
 
     info!("Creating state");
     let state: Arc<AppState> = Arc::new(AppState::new(
@@ -88,6 +95,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         pin_type_repo,
         challenge_repo,
         signature_utils,
+        comment_repo,
+        ai_utils,
     ));
 
     info!("Initializing axum");
@@ -104,7 +113,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         .allow_origin(Any)
                         .allow_methods(Any)
                         .allow_headers(Any),
-                ),
+                )
+                .layer(DefaultBodyLimit::max(5 * 1024 * 1024 * 1024)),
         )
         .with_state(state.clone());
 
