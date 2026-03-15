@@ -16,14 +16,14 @@
       {
         "ordinal": 2,
         "name": "icon",
-        "type_info": "Bytea"
+        "type_info": "Varchar"
       }
     ],
     "parameters": {
       "Left": [
         "Numeric",
         "Varchar",
-        "Bytea"
+        "Varchar"
       ]
     },
     "nullable": [

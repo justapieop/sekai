@@ -55,11 +55,16 @@
       },
       {
         "ordinal": 10,
+        "name": "instruction",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 11,
         "name": "opening",
         "type_info": "Int4Array"
       },
       {
-        "ordinal": 11,
+        "ordinal": 12,
         "name": "closing",
         "type_info": "Int4Array"
       }
@@ -68,6 +73,7 @@
       "Left": []
     },
     "nullable": [
+      false,
       false,
       false,
       false,

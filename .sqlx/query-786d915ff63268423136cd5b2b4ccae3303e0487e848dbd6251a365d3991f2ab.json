@@ -32,6 +32,16 @@
         "ordinal": 5,
         "name": "attachment_id",
         "type_info": "Numeric"
+      },
+      {
+        "ordinal": 6,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 7,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
       }
     ],
     "parameters": {
@@ -50,7 +60,9 @@
       false,
       true,
       false,
-      true
+      true,
+      false,
+      false
     ]
   },
   "hash": "786d915ff63268423136cd5b2b4ccae3303e0487e848dbd6251a365d3991f2ab"
