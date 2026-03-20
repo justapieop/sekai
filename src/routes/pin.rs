@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{repo::pin::DBPin, routes::pin_type, state::AppState};
-use axum::{extract::State, response::IntoResponse, routing::get, Json, Router};
+use axum::{Json, Router, extract::State, response::IntoResponse, routing::get};
 use reqwest::StatusCode;
 
 async fn get_all_pins(State(state): State<Arc<AppState>>) -> impl IntoResponse {

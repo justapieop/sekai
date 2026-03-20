@@ -4,7 +4,7 @@ use bigdecimal::{BigDecimal, FromPrimitive};
 use chrono::{DateTime, Utc};
 use moka::future::Cache;
 use serde::{Deserialize, Serialize};
-use sqlx::{prelude::FromRow, Postgres, Transaction};
+use sqlx::{Postgres, Transaction, prelude::FromRow};
 use uuid::Uuid;
 
 const CACHE_KEY: &str = "POST_CACHE";

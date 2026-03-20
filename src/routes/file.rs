@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use axum::{
+    Router,
     extract::{Path, State},
     response::IntoResponse,
     routing::get,
-    Router,
 };
 use bytes::Bytes;
 use reqwest::StatusCode;

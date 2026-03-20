@@ -65,9 +65,14 @@ pub fn routes(state: Arc<AppState>) -> Router<Arc<AppState>> {
         )
         .nest(
             "/ai",
-            ai::routes().layer(from_fn_with_state(
-                state.clone(),
-                middleware::verify_access_token,
-            )),
+            ai::routes()
+                .layer(from_fn_with_state(
+                    state.clone(),
+                    middleware::verify_access_token,
+                ))
+                .layer(from_fn_with_state(
+                    state.clone(),
+                    middleware::check_balance(1),
+                )),
         )
 }

@@ -9,10 +9,10 @@ use crate::{
     state::AppState,
 };
 use axum::{
-    extract::{Path, State}, response::IntoResponse, routing::get,
-    Extension,
-    Json,
-    Router,
+    Extension, Json, Router,
+    extract::{Path, State},
+    response::IntoResponse,
+    routing::get,
 };
 use axum_typed_multipart::{FieldData, TryFromMultipart, TypedMultipart};
 use bytes::Bytes;

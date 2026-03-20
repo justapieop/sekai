@@ -5,9 +5,9 @@ mod routes;
 mod state;
 mod utils;
 
-use axum::extract::DefaultBodyLimit;
 use axum::Router;
-use sqlx::{migrate, postgres::PgPoolOptions, PgPool};
+use axum::extract::DefaultBodyLimit;
+use sqlx::{PgPool, migrate, postgres::PgPoolOptions};
 use std::{error::Error, sync::Arc};
 use tokio::{net::TcpListener, sync::Mutex};
 use tower::ServiceBuilder;

@@ -1,14 +1,18 @@
 use std::sync::Arc;
 
+use crate::repo::user::DBUser;
 use crate::{repo::pin_types::DBPinType, state::AppState};
 use axum::{
-    extract::{Path, State}, response::IntoResponse,
-    routing::post,
+    extract::{Path, State}, response::IntoResponse, routing::post,
+    Extension,
     Json,
     Router,
 };
+use axum_typed_multipart::{FieldData, TryFromMultipart, TypedMultipart};
+use bytes::Bytes;
 use reqwest::StatusCode;
 use serde::Deserialize;
+use tracing::error;
 
 async fn create_pin_type(
     State(state): State<Arc<AppState>>,
@@ -29,7 +33,7 @@ async fn create_pin_type(
         .await
     {
         Ok(s) => s,
-        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+        Err(e) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     };
     match tx.commit().await {
         Ok(_) => (StatusCode::OK, Json(pin_type)).into_response(),
@@ -40,12 +44,40 @@ async fn create_pin_type(
 async fn create_pin(
     State(state): State<Arc<AppState>>,
     Path(id): Path<u128>,
-    Json(input): Json<DTOCreatePin>,
+    Extension(ext): Extension<Arc<DBUser>>,
+    TypedMultipart(input): TypedMultipart<DTOCreatePin>,
 ) -> impl IntoResponse {
     let mut tx = match state.pool.begin().await {
         Ok(tx) => tx,
         Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     };
+
+    let file_id: u128 = state.snowflake.lock().await.next_id().await.id;
+    let content_type: &str =
+        file_type::FileType::from_bytes(&input.attachment.contents).media_types()[0];
+
+    match state
+        .file_repo
+        .lock()
+        .await
+        .create_file(&mut tx, file_id, ext.id)
+        .await
+    {
+        Ok(_) => match state
+            .storage_utils
+            .upload_public_file(
+                &input.attachment.contents,
+                &file_id.to_string(),
+                content_type,
+            )
+            .await
+        {
+            Ok(_) => {}
+            Err(e) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+        },
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    };
+
     let pin = match state
         .pin_repo
         .create_pin(
@@ -61,11 +93,18 @@ async fn create_pin(
             input.opening,
             input.closing,
             &input.instruction,
+            file_id,
+            &input.accepts,
+            input.opening_days,
+            &input.note,
         )
         .await
     {
         Ok(s) => s,
-        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+        Err(e) => {
+            error!("{}", e);
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
     };
 
     match tx.commit().await {
@@ -87,7 +126,7 @@ pub struct DTOCreatePinType {
     icon: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, TryFromMultipart)]
 pub struct DTOCreatePin {
     name: String,
     lat: f32,
@@ -98,4 +137,8 @@ pub struct DTOCreatePin {
     opening: Vec<i32>,
     closing: Vec<i32>,
     instruction: String,
+    attachment: FieldData<Bytes>,
+    accepts: String,
+    opening_days: i16,
+    note: String,
 }

@@ -5,10 +5,10 @@ use crate::{
 };
 use axum::extract::Path;
 use axum::{
-    extract::{Query, State}, response::IntoResponse, routing::get,
-    Extension,
-    Json,
-    Router,
+    Extension, Json, Router,
+    extract::{Query, State},
+    response::IntoResponse,
+    routing::get,
 };
 use bigdecimal::{BigDecimal, ToPrimitive};
 use bytes::Bytes;

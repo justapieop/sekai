@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "INSERT INTO pins (id, name, type_id, lat, long, address, is_sponsored, terms, opening, closing, instruction) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *;",
+  "query": "INSERT INTO pins (id, name, type_id, lat, long, address, is_sponsored, terms, opening, closing, instruction, image_id, accepts, opening_days, note) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *;",
   "describe": {
     "columns": [
       {
@@ -67,6 +67,26 @@
         "ordinal": 12,
         "name": "closing",
         "type_info": "Int4Array"
+      },
+      {
+        "ordinal": 13,
+        "name": "image_id",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 14,
+        "name": "accepts",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 15,
+        "name": "opening_days",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 16,
+        "name": "note",
+        "type_info": "Text"
       }
     ],
     "parameters": {
@@ -81,6 +101,10 @@
         "Text",
         "Int4Array",
         "Int4Array",
+        "Text",
+        "Numeric",
+        "Text",
+        "Int2",
         "Text"
       ]
     },
@@ -97,8 +121,12 @@
       false,
       false,
       false,
+      false,
+      false,
+      false,
+      false,
       false
     ]
   },
-  "hash": "9b1ccb030d89fddbdf9c2e180d04756c8f78e2b7b543526e165d66fdc7e1f983"
+  "hash": "711b98f6d634b5a7b6f401a9fb51b2d1269726b94948cc7d488604f47b83dde1"
 }

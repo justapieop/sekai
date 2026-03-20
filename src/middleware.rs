@@ -1,15 +1,14 @@
+use crate::{AppState, repo::user::DBUser};
 use std::{str::FromStr, sync::Arc};
-
-use crate::{repo::user::DBUser, AppState};
 
 use axum::response::IntoResponse;
 use axum::{
+    Extension,
     body::Body,
     extract::{Request, State},
     http::StatusCode,
     middleware::Next,
     response::Response,
-    Extension,
 };
 use bytes::Bytes;
 use uuid::Uuid;
@@ -96,6 +95,25 @@ pub async fn restrict_admin(
             .unwrap_or_default();
     }
     next.run(req).await
+}
+
+pub fn check_balance(
+    bal: i64,
+) -> impl Fn(
+    State<Arc<AppState>>,
+    Extension<Arc<DBUser>>,
+    Request,
+    Next,
+) -> std::pin::Pin<Box<dyn std::future::Future<Output = Response> + Send>>
++ Clone {
+    move |State(_), Extension(ext), request, next| {
+        Box::pin(async move {
+            if ext.points < bal {
+                return StatusCode::PAYMENT_REQUIRED.into_response();
+            }
+            next.run(request).await
+        })
+    }
 }
 
 pub async fn check_signature(

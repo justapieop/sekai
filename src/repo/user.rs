@@ -1,9 +1,8 @@
-use std::{error::Error, time::Duration};
-
 use chrono::{DateTime, Utc};
 use moka::future::Cache;
 use serde::{Deserialize, Serialize};
-use sqlx::{prelude::FromRow, Postgres, Transaction};
+use sqlx::{Postgres, Transaction, prelude::FromRow};
+use std::{error::Error, time::Duration};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -13,7 +12,7 @@ pub struct DBUser {
     pub updated_at: DateTime<Utc>,
     pub bio: String,
     pub is_admin: bool,
-    pub points: i128,
+    pub points: i64,
     pub email: String,
     pub name: String,
     pub avatar_url: String,
@@ -129,6 +128,25 @@ impl UserRepo {
         match sqlx::query!("UPDATE users SET bio = $1 WHERE id = $2;", bio, user_id)
             .fetch_optional(&mut **pool)
             .await
+        {
+            Ok(_) => Ok(()),
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    pub async fn set_point(
+        &self,
+        pool: &mut Transaction<'_, Postgres>,
+        user_id: Uuid,
+        point: i64,
+    ) -> Result<(), Box<dyn Error>> {
+        match sqlx::query!(
+            r#"UPDATE users SET points = $1 WHERE id = $2;"#,
+            point,
+            user_id
+        )
+        .execute(&mut **pool)
+        .await
         {
             Ok(_) => Ok(()),
             Err(e) => Err(e.into()),

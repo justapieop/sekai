@@ -23,6 +23,10 @@ pub struct DBPin {
     pub instruction: String,
     pub opening: Vec<i32>,
     pub closing: Vec<i32>,
+    pub image_id: BigDecimal,
+    pub accepts: String,
+    pub opening_days: i16,
+    pub note: String,
 }
 
 pub struct PinRepo {
@@ -76,10 +80,14 @@ impl PinRepo {
         opening: Vec<i32>,
         closing: Vec<i32>,
         instruction: &str,
+        image_id: u128,
+        accepts: &str,
+        opening_days: i16,
+        note: &str,
     ) -> Result<DBPin, Box<dyn Error>> {
         let pin: &DBPin = &(match sqlx::query_as!(
                     DBPin,
-                    r#"INSERT INTO pins (id, name, type_id, lat, long, address, is_sponsored, terms, opening, closing, instruction) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *;"#,
+                    r#"INSERT INTO pins (id, name, type_id, lat, long, address, is_sponsored, terms, opening, closing, instruction, image_id, accepts, opening_days, note) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *;"#,
                     BigDecimal::from_u128(id).unwrap_or_default(),
                     name,
                     BigDecimal::from_u128(type_id).unwrap_or_default(),
@@ -90,7 +98,11 @@ impl PinRepo {
                     terms,
                     &opening,
                     &closing,
-                    instruction
+                    instruction,
+                    BigDecimal::from_u128(image_id).unwrap_or_default(),
+                    &accepts,
+                    opening_days,
+                    &note
                 ).fetch_one(&mut **pool).await {
             Ok(s) => s,
             Err(e) => return Err(e.into()),

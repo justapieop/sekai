@@ -2,10 +2,10 @@ use std::sync::Arc;
 
 use crate::{repo::user::DBUser, state::AppState};
 use axum::{
-    extract::{Path, State}, response::IntoResponse, routing::{delete, post},
-    Extension,
-    Json,
-    Router,
+    Extension, Json, Router,
+    extract::{Path, State},
+    response::IntoResponse,
+    routing::{delete, post},
 };
 use axum_typed_multipart::{FieldData, TryFromMultipart, TypedMultipart};
 use bytes::Bytes;

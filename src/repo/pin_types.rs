@@ -59,7 +59,7 @@ impl PinTypeRepo {
         name: &str,
         icon: &str,
     ) -> Result<DBPinType, Box<dyn Error>> {
-        let pin_type: DBPinType = match sqlx::query_as!(
+        let pin_type: &DBPinType = &(match sqlx::query_as!(
             DBPinType,
             r#"INSERT INTO pin_types VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING *;"#,
             BigDecimal::from_u128(id).unwrap_or_default(),
@@ -71,9 +71,23 @@ impl PinTypeRepo {
         {
             Ok(s) => s,
             Err(e) => return Err(e.into()),
-        };
+        });
 
-        Ok(pin_type)
+        if let Some(mut cached_pin_type_list) = self.cache.get(CACHE_KEY).await {
+            cached_pin_type_list.push(pin_type.clone());
+            self.cache
+                .insert(String::from(CACHE_KEY), cached_pin_type_list)
+                .await;
+        } else {
+            let mut pin_type_list: Vec<DBPinType> = Vec::new();
+            pin_type_list.push(pin_type.clone());
+
+            self.cache
+                .insert(String::from(CACHE_KEY), pin_type_list)
+                .await;
+        }
+
+        Ok(pin_type.clone())
     }
 
     pub async fn delete_pin_type(

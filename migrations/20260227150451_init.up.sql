@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS pin_types
 (
     id   NUMERIC(39, 0) PRIMARY KEY,
     name VARCHAR(256) UNIQUE NOT NULL,
-    icon VARCHAR(1)          NOT NULL
+    icon VARCHAR(32)         NOT NULL
 );
 
 CREATE UNIQUE INDEX pin_type_idx ON pin_types (id);
@@ -66,7 +66,11 @@ CREATE TABLE IF NOT EXISTS pins
     terms        TEXT           NOT NULL DEFAULT '',
     instruction  TEXT           NOT NULL DEFAULT '',
     opening      INT[]          NOT NULL DEFAULT ARRAY [0, 0],
-    closing      INT[]          NOT NULL DEFAULT ARRAY [0, 0]
+    closing      INT[]          NOT NULL DEFAULT ARRAY [0, 0],
+    image_id     NUMERIC(39, 0) NOT NULL REFERENCES file_metadata (id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    accepts      TEXT           NOT NULL DEFAULT '',
+    opening_days SMALLINT       NOT NULL DEFAULT 0 CHECK ( opening_days >= 0 AND opening_days < 128 ),
+    note         TEXT           NOT NULL DEFAULT 'Không có'
 );
 
 CREATE UNIQUE INDEX pin_idx ON pins (id);

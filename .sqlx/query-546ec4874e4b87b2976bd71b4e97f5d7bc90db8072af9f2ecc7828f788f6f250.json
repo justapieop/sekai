@@ -67,12 +67,36 @@
         "ordinal": 12,
         "name": "closing",
         "type_info": "Int4Array"
+      },
+      {
+        "ordinal": 13,
+        "name": "image_id",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 14,
+        "name": "accepts",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 15,
+        "name": "opening_days",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 16,
+        "name": "note",
+        "type_info": "Text"
       }
     ],
     "parameters": {
       "Left": []
     },
     "nullable": [
+      false,
+      false,
+      false,
+      false,
       false,
       false,
       false,

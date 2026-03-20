@@ -1,8 +1,8 @@
 use bytes::Bytes;
 use moka::future::Cache;
 use s3::{
-    types::{GetObjectOutput, PutObjectOutput}, Client, Credentials,
-    Error,
+    Client, Credentials, Error,
+    types::{GetObjectOutput, PutObjectOutput},
 };
 use std::time::Duration;
 use uuid::Uuid;
