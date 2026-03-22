@@ -12,7 +12,7 @@ use axum_typed_multipart::{FieldData, TryFromMultipart, TypedMultipart};
 use bytes::Bytes;
 use reqwest::StatusCode;
 use serde::Deserialize;
-use sqlx::{Error, Postgres, Transaction};
+use sqlx::{Postgres, Transaction};
 use tracing::error;
 
 async fn create_pin_type(
