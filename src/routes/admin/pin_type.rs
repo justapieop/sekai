@@ -12,6 +12,7 @@ use axum_typed_multipart::{FieldData, TryFromMultipart, TypedMultipart};
 use bytes::Bytes;
 use reqwest::StatusCode;
 use serde::Deserialize;
+use sqlx::{Error, Postgres, Transaction};
 use tracing::error;
 
 async fn create_pin_type(
@@ -113,11 +114,40 @@ async fn create_pin(
     }
 }
 
+async fn delete_routes(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<u128>,
+) -> impl IntoResponse {
+    let mut tx: Transaction<Postgres> = match state.pool.begin().await {
+        Ok(s) => s,
+        Err(e) => {
+            error!("{e:?}");
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
+    };
+
+    match state.pin_type_repo.delete_pin_type(&mut tx, id).await {
+        Ok(_) => {}
+        Err(e) => {
+            error!("{e:?}");
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
+    };
+
+    match tx.commit().await {
+        Ok(_) => StatusCode::OK.into_response(),
+        Err(e) => {
+            error!("{e:?}");
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+        }
+    }
+}
+
 pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
         .without_v07_checks()
         .route("/", post(create_pin_type))
-        .route("/{id}", post(create_pin))
+        .route("/{id}", post(create_pin).delete(delete_routes))
 }
 
 #[derive(Debug, Deserialize)]
