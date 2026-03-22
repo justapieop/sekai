@@ -1,14 +1,14 @@
-use crate::{AppState, repo::user::DBUser};
+use crate::{repo::user::DBUser, AppState};
 use std::{str::FromStr, sync::Arc};
 
 use axum::response::IntoResponse;
 use axum::{
-    Extension,
     body::Body,
     extract::{Request, State},
     http::StatusCode,
     middleware::Next,
     response::Response,
+    Extension,
 };
 use bytes::Bytes;
 use uuid::Uuid;
@@ -75,6 +75,10 @@ pub async fn verify_access_token(
         },
     );
 
+    if user.suspended {
+        return (StatusCode::UNAUTHORIZED).into_response();
+    }
+
     match tx.commit().await {
         Ok(_) => req.extensions_mut().insert(user),
         Err(_) => return res,
@@ -88,7 +92,7 @@ pub async fn restrict_admin(
     req: Request,
     next: Next,
 ) -> Response {
-    if !ext.is_admin {
+    if !ext.admin {
         return Response::builder()
             .status(StatusCode::UNAUTHORIZED)
             .body(Body::from("Unauthorized"))

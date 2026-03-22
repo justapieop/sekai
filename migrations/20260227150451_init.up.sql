@@ -4,11 +4,12 @@ CREATE TABLE IF NOT EXISTS users
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     bio        TEXT        NOT NULL DEFAULT '',
-    is_admin   BOOLEAN     NOT NULL DEFAULT false,
+    admin      BOOLEAN     NOT NULL DEFAULT false,
     points     BIGINT      NOT NULL DEFAULT 0,
     email      TEXT        NOT NULL,
     name       TEXT        NOT NULL,
-    avatar_url TEXT        NOT NULL
+    avatar_url TEXT        NOT NULL,
+    suspended  BOOLEAN     NOT NULL DEFAULT false
 );
 
 CREATE UNIQUE INDEX user_idx ON users (id);

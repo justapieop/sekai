@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use moka::future::Cache;
 use serde::{Deserialize, Serialize};
-use sqlx::{Postgres, Transaction, prelude::FromRow};
+use sqlx::{prelude::FromRow, Postgres, Transaction};
 use std::{error::Error, time::Duration};
 use uuid::Uuid;
 
@@ -11,11 +11,12 @@ pub struct DBUser {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub bio: String,
-    pub is_admin: bool,
+    pub admin: bool,
     pub points: i64,
     pub email: String,
     pub name: String,
     pub avatar_url: String,
+    pub suspended: bool,
 }
 
 const CACHE_KEY: &str = "USER_CACHE";
