@@ -132,3 +132,11 @@ CREATE TABLE IF NOT EXISTS post_comments
 );
 
 CREATE UNIQUE INDEX post_comment_idx ON post_comments (id);
+
+CREATE TABLE IF NOT EXISTS user_reactions (
+    user_id UUID REFERENCES users(id),
+    post_id NUMERIC(39, 0) REFERENCES posts(id),
+    PRIMARY KEY (user_id, post_id)
+);
+
+CREATE UNIQUE INDEX user_reaction_idx ON user_reactions(user_id, post_id);
