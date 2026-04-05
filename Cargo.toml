@@ -1,0 +1,50 @@
+[package]
+name = "sekai"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tokio = { version = "1.49.0", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+axum = { version = "0.8.7", features = ["macros"] }
+tower-http = { version = "0.6.8", features = [
+    "cors",
+    "compression-gzip",
+    "trace",
+    "normalize-path",
+] }
+tower = "0.5.3"
+serde = { version = "1.0.228", features = ["derive"] }
+chrono = { version = "0.4.44", features = ["serde"] }
+jsonwebtoken = "9.3.1"
+jwks = "0.4.0"
+reqwest = { version = "0.12.25", default-features = false, features = [
+    "json",
+    "rustls-tls",
+] }
+sqlx = { version = "0.8", features = [
+    "runtime-tokio",
+    "tls-rustls-ring-webpki",
+    "derive",
+    "migrate",
+    "chrono",
+    "postgres",
+    "uuid",
+    "bigdecimal",
+    "json",
+] }
+uuid = { version = "1.21.0", features = ["serde", "v7"] }
+moka = { version = "0.12.13", features = ["future"] }
+dotenvy = "0.15.7"
+bigdecimal = { version = "0.4", features = ["serde-json"] }
+s3 = { version = "0.1.17", features = ["async", "rustls"] }
+bytes = { version = "1.11.1", features = ["serde"] }
+axum_typed_multipart = "0.16.5"
+file_type = { version = "0.8.11", features = ["iana"] }
+urlencoding = "2.1.3"
+hmac = "0.12.1"
+sha2 = "0.10.9"
+hex = "0.4.3"
+adk-gemini = "0.3.2"
+base64 = "0.22.1"
