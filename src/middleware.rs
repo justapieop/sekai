@@ -1,6 +1,4 @@
 use crate::{repo::user::DBUser, AppState};
-use std::{str::FromStr, sync::Arc};
-
 use axum::response::IntoResponse;
 use axum::{
     body::Body,
@@ -11,6 +9,7 @@ use axum::{
     Extension,
 };
 use bytes::Bytes;
+use std::{str::FromStr, sync::Arc};
 use uuid::Uuid;
 
 pub async fn verify_access_token(
@@ -75,10 +74,6 @@ pub async fn verify_access_token(
         },
     );
 
-    if user.suspended {
-        return (StatusCode::UNAUTHORIZED).into_response();
-    }
-
     match tx.commit().await {
         Ok(_) => req.extensions_mut().insert(user),
         Err(_) => return res,
@@ -99,25 +94,6 @@ pub async fn restrict_admin(
             .unwrap_or_default();
     }
     next.run(req).await
-}
-
-pub fn check_balance(
-    bal: i64,
-) -> impl Fn(
-    State<Arc<AppState>>,
-    Extension<Arc<DBUser>>,
-    Request,
-    Next,
-) -> std::pin::Pin<Box<dyn std::future::Future<Output = Response> + Send>>
-+ Clone {
-    move |State(_), Extension(ext), request, next| {
-        Box::pin(async move {
-            if ext.points < bal {
-                return StatusCode::PAYMENT_REQUIRED.into_response();
-            }
-            next.run(request).await
-        })
-    }
 }
 
 pub async fn check_signature(
