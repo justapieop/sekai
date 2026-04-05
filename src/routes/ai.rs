@@ -11,6 +11,7 @@ use bytes::Bytes;
 use sqlx::{Postgres, Transaction};
 use std::collections::HashMap;
 use std::sync::Arc;
+use tracing::error;
 
 async fn prompt_with_image(
     State(state): State<Arc<AppState>>,
@@ -19,7 +20,10 @@ async fn prompt_with_image(
 ) -> impl IntoResponse {
     let mut tx: Transaction<Postgres> = match state.pool.begin().await {
         Ok(s) => s,
-        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+        Err(e) => {
+            error!("{e:?}");
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
     };
 
     let res: AiResponse = match state
@@ -28,7 +32,10 @@ async fn prompt_with_image(
         .await
     {
         Ok(s) => s,
-        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+        Err(e) => {
+            error!("{e:?}");
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
     };
 
     match state
@@ -37,12 +44,18 @@ async fn prompt_with_image(
         .await
     {
         Ok(_) => {}
-        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+        Err(e) => {
+            error!("{e:?}");
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
     };
 
     match tx.commit().await {
         Ok(_) => (StatusCode::OK, Json(res)).into_response(),
-        Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+        Err(e) => {
+            error!("{e:?}");
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
     }
 }
 
